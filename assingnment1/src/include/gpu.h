@@ -2,7 +2,8 @@
 #define GPU_H
 
 
-int run(void);
+__global__ void SpMV_A(const int *, const int *, const float *, const float *, float *, int);
+__global__ void SpMV_B(const int *, const int *, const float *, const float *, float *, int);
 
 
 #endif

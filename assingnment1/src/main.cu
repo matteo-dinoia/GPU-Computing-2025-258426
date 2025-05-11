@@ -1,11 +1,11 @@
-// ES 6.1
-// Use "module load GCC/12.3.0" to enable highlighting
 #include <iostream>
 #include <math.h>
 #include <strings.h>
+
+#include "include/cpu.h"
+#include "include/gpu.h"
 #include "include/mtx.h"
 #include "include/time_utils.h"
-#include <cuda_runtime.h>
 
 using std::cout;
 using std::endl;
@@ -23,95 +23,54 @@ using std::max;
 #define OK true
 #define ERR false
 
-// Kernel function to add the elements of two arrays
-// ASSUME it is zeroed the res vector
-__global__ void SpMV_A(const int *x, const int *y, const float *val, const float *vec, float *res, int NON_ZERO) {
-    int n_threads = gridDim.x * blockDim.x;
-    int per_thread = (int)ceil(NON_ZERO / (float)n_threads);
-    int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-    int start = start_i * per_thread;
+bool read_data(struct Coo *);
+void execution(const struct Coo, float *, float *, float *);
+int timed_main();
 
-    for (int i = 0; i < per_thread; i++) {
-        const int el = start + i;
-        if (el < NON_ZERO) {
-            atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
-            //printf("%d %d %f %f %f\n", y[el], x[el], val[el], res[y[el]], vec[x[el]]);
-        }
-    }
-}
-
-// Kernel function to add the elements of two arrays
-// ASSUME it is zeroed the res vector
-__global__ void SpMV_B(const int *x, const int *y, const float *val, const float *vec, float *res, int NON_ZERO) {
-    int n_threads = gridDim.x * blockDim.x;
-    int per_thread = (int)ceil(NON_ZERO / (float)n_threads);
-    int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-
-    for (int i = 0; i < per_thread; i++) {
-        const int el = start_i + i * n_threads;
-        if (el < NON_ZERO) {
-            atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
-            //printf("%d %d %f %f %f\n", y[el], x[el], val[el], res[y[el]], vec[x[el]]);
-        }
-    }
-}
-
-// ASSUME it is zeroed the res vector
-void gemm_sparse_cpu(const int *cx, const int *cy, const float *vals, const float *vec, float *res, const int NON_ZERO) {
-    if (cx == NULL || cy == NULL || vals == NULL || vec == NULL || res == NULL) {
-        printf("NULL pointeri in GEMM sparse\n");
-        return;
-    }
-
-    for (int i = 0; i < NON_ZERO; i++) {
-        const int row = cy[i];
-        const int col = cx[i];
-
-        res[row] += vec[col] * vals[i];
-    }
-}
-
-int run() {
+int main() {
+    int ret;
     TIMER_DEF(1);
-    TIMER_START(1);
-    cudaEvent_t start, stop;
+
+    TIMER_TIME(1, {
+        ret = timed_main();
+    });
+
+    cout << "TOTAL PROGRAM TIME: " << TIMER_ELAPSED(1) / 1.e3 << "ms" << endl;
+    return ret;
+}
+
+int timed_main() {
+    // Data allocation
+    struct Coo matrix;
+    float *vec = NULL, *res = NULL, *res_control = NULL;
+
+    // Data read
+    bool ret = read_data(&matrix);
+
+    // Execution
+    if (ret == OK) {
+        cudaMallocManaged(&vec, matrix.COLS * sizeof(float));
+        cudaMallocManaged(&res, matrix.ROWS * sizeof(float));
+        res_control = (float *)malloc(matrix.ROWS * sizeof(float));
+
+        execution(matrix, vec, res, res_control);
+    }
+
+
+    // Free memory
+    cudaFree(matrix.xs);
+    cudaFree(matrix.ys);
+    cudaFree(matrix.vals);
+    cudaFree(res);
+    free(res_control);
+    return 0;
+}
+
+void execution(const struct Coo matrix, float *vec, float *res, float *res_control) {
     TIMER_DEF(0);
+    cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
-
-    struct Coo matrix;
-    FILE *file;
-    // HEADER READING --------------------------------------------------------------
-    TIMER_TIME(0, {
-        file = fopen(INPUT_FILENAME, "r");
-        const bool status = read_mtx_header(file, &matrix);
-        if (status == ERR) {
-            //TODO DON'T LEAK
-            cout << "FATAL: fail to read header" << endl;
-            return -1;
-        }
-    });
-    cout << "READ HEADER: " << TIMER_ELAPSED(0) / 1.e3 << "ms" << endl;
-    cout << "Header: " << matrix.ROWS << " " << matrix.COLS << " " << matrix.NON_ZERO << endl;
-
-    float *vec, *res, *res_control;
-    cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(int));
-    cudaMallocManaged(&matrix.ys, matrix.NON_ZERO * sizeof(int));
-    cudaMallocManaged(&matrix.vals, matrix.NON_ZERO * sizeof(float));
-    cudaMallocManaged(&vec, matrix.COLS * sizeof(float));
-    cudaMallocManaged(&res, matrix.ROWS * sizeof(float));
-    res_control = (float *)malloc(matrix.ROWS * sizeof(float));
-
-    // CREAZIONE DATA --------------------------------------------------------------
-    TIMER_TIME(0, {
-        const bool status = read_mtx_data(file, &matrix);
-        if (status == ERR) {
-            //TODO DON'T LEAK
-            cout << "FATAL: fail to read data" << endl;
-            return -1;
-        }
-    });
-    cout << "READ DATA: " << TIMER_ELAPSED(0) / 1.e3 << "ms" << endl;
 
     int N_GPU_KERNEL = 2;
     float gpu_times[N_GPU_KERNEL] = {0};
@@ -194,18 +153,40 @@ int run() {
         cout << "There were " << n_error << " errors in the array (cycle " << cycle - 1 << ")" << endl;
     }
 
-    // Free memory
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    cudaFree(matrix.xs);
-    cudaFree(matrix.ys);
-    cudaFree(matrix.vals);
-    cudaFree(res);
-    cudaFree(res_control);
+}
 
-    // full time
-    TIMER_STOP(1);
-    cout << "TOTAL PROGRAM TIME: " << TIMER_ELAPSED(1) / 1.e3 << "ms" << endl;
+// TODO better error handling
+bool read_data(struct Coo *matrix) {
+    FILE *file = fopen(INPUT_FILENAME, "r");
+    TIMER_DEF(2);
 
-    return 0;
+    // Reading header
+    TIMER_TIME(2, {
+        const bool status = read_mtx_header(file, matrix);
+        if (status == ERR) {
+            cout << "FATAL: fail to read header" << endl;
+            return ERR;
+        }
+    });
+    cout << "READ HEADER: " << TIMER_ELAPSED(2) / 1.e3 << "ms" << endl;
+    cout << "Header: " << matrix->ROWS << " " << matrix->COLS << " " << matrix->NON_ZERO << endl;
+
+    // Alloc memory
+    cudaMallocManaged(&matrix->xs, matrix->NON_ZERO * sizeof(int));
+    cudaMallocManaged(&matrix->ys, matrix->NON_ZERO * sizeof(int));
+    cudaMallocManaged(&matrix->vals, matrix->NON_ZERO * sizeof(float));
+
+    // Reading data
+    TIMER_TIME(2, {
+        const bool status = read_mtx_data(file, matrix);
+        if (status == ERR) {
+            cout << "FATAL: fail to read data" << endl;
+            return ERR;
+        }
+    });
+    cout << "READ DATA: " << TIMER_ELAPSED(2) / 1.e3 << "ms" << endl;
+
+    return OK;
 }
