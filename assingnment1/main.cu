@@ -1,4 +1,5 @@
 // ES 6.1
+// Use "module load GCC/12.3.0" to enable highlighting
 #include <iostream>
 #include <math.h>
 #include <strings.h>
@@ -9,13 +10,15 @@
 #define MAX_THREAD_PER_BLOCK 1024
 #define MAX_WARP 32
 #define MAX_BLOCK 256
-#define INPUT_FILENAME "../mawi_201512020330.mtx"
+#define INPUT_FILENAME "datasets/mawi_201512020330.mtx"
 
-#define CYCLES 1
+#define CYCLES 10
 #define WARMUP_CYCLES 0
 
 #define OK true
 #define ERR false
+
+
 
 #define eprintf(...) fprintf(stderr, __VA_ARGS__)
 using namespace std;
@@ -28,10 +31,11 @@ __global__ void SpMV_A(const int *x, const int *y, const M_TYPE *val, const M_TY
     int start_i = blockIdx.x * blockDim.x + threadIdx.x;
     int start = start_i * per_thread;
 
-    for (int i = start; i < start + per_thread; i++) {
-        if (i < NON_ZERO) {
-            atomicAdd(&res[y[i]], val[i] * vec[x[i]]);
-            //printf("%d %d %f %f %f\n", y[i], x[i], val[i], res[y[i]], vec[x[i]]);
+    for (int i = 0; i < per_thread; i++) {
+        const int el = start + i;
+        if (el < NON_ZERO) {
+            atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
+            //printf("%d %d %f %f %f\n", y[el], x[el], val[el], res[y[el]], vec[x[el]]);
         }
     }
 }
@@ -42,12 +46,12 @@ __global__ void SpMV_B(const int *x, const int *y, const M_TYPE *val, const M_TY
     int n_threads = gridDim.x * blockDim.x;
     int per_thread = (int)ceil(NON_ZERO / (float)n_threads);
     int start_i = blockIdx.x * blockDim.x + threadIdx.x;
-    int start = start_i * per_thread;
 
-    for (int i = start; i < n_threads * per_thread; i += n_threads) {
-        if (i < NON_ZERO) {
-            atomicAdd(&res[y[i]], val[i] * vec[x[i]]);
-            //printf("%d %d %f %f %f\n", y[i], x[i], val[i], res[y[i]], vec[x[i]]);
+    for (int i = 0; i < per_thread; i++) {
+        const int el = start_i + i * n_threads;
+        if (el < NON_ZERO) {
+            atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
+            //printf("%d %d %f %f %f\n", y[el], x[el], val[el], res[y[el]], vec[x[el]]);
         }
     }
 }
@@ -68,6 +72,8 @@ void gemm_sparse_cpu(const int *cx, const int *cy, const M_TYPE *vals, const M_T
 }
 
 int main(void) {
+    TIMER_DEF(1);
+    TIMER_START(1);
     cudaEvent_t start, stop;
     TIMER_DEF(0);
     cudaEventCreate(&start);
@@ -86,6 +92,7 @@ int main(void) {
         }
     });
     cout << "READ HEADER: " << TIMER_ELAPSED(0) / 1.e3 << "ms" << endl;
+    cout << "Header: " << ROWS << " " << COLS << " " << NON_ZERO << endl;
 
     int *x, *y;
     M_TYPE *vals, *vec, *res, *res_control;
@@ -108,15 +115,22 @@ int main(void) {
     });
     cout << "READ DATA: " << TIMER_ELAPSED(0) / 1.e3 << "ms" << endl;
 
-    double sum_times = 0;
+    int N_GPU_KERNEL = 2;
+    float gpu_times[N_GPU_KERNEL] = {0};
+    double cpu_time = 0;
+    double sum_times[N_GPU_KERNEL] = {0};
     double sum_cpu_times = 0;
     srand(time(0));
-    int n_block = min(MAX_BLOCK, (int)ceil(NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
     int n_error = 0;
     int cycle;
 
+    int n_blocks = min(MAX_BLOCK, (int)ceil(NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
+    int n_thread_per_block = min(MAX_THREAD_PER_BLOCK, NON_ZERO);
+    cout << "Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>" << endl;
+
     // Allocate Unified Memory accessible from CPU or GPU
-    for (cycle = -WARMUP_CYCLES; cycle < CYCLES && n_error == 0; cycle++) {
+    for (cycle = -WARMUP_CYCLES; cycle < CYCLES /*&& n_error == 0*/; cycle++) {
+        n_error = 0; //TODO REmove
         // initialize vec arrays with random values
         for (int i = 0; i < COLS; i++) {
             vec[i] = rand() % 50; //TODO Use float value
@@ -125,38 +139,57 @@ int main(void) {
         // Run cpu version
         bzero(res_control, ROWS * sizeof(float));
         TIMER_TIME(0, gemm_sparse_cpu(x, y, vals, vec, res_control, NON_ZERO));
-        float cpu_time = TIMER_ELAPSED(0) / 1.e3;
+        cpu_time = TIMER_ELAPSED(0) / 1.e3;
 
-        // Run kernel on 1M elements on the GPU
-        bzero(res, ROWS * sizeof(float));
+        // KERNEL 1
         cudaEventRecord(start);
-        SpMV_A<<<n_block, MAX_THREAD_PER_BLOCK>>>(x, y, vals, vec, res, NON_ZERO);
+        bzero(res, ROWS * sizeof(float));
+        SpMV_A<<<n_blocks, n_thread_per_block>>>(x, y, vals, vec, res, NON_ZERO);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
-
-        // Wait for GPU to finish before accessing on host
-        cudaDeviceSynchronize();
-
-        // Check for errors (all values should be 3.0f)
+        cudaEventElapsedTime(&gpu_times[0], start, stop);
+        // Check for errors
         for (int i = 0; i < ROWS; i++) {
             if (fabs(res_control[i] - res[i]) > res_control[i] * 0.01) {
-                //cout << "INFO: data error: " << res[i] << " vs " << res_control[i] << endl;
+                cout << "INFO: data error: " << res[i] << " vs " << res_control[i] << endl;
                 n_error++;
             }
         }
+        cout << "After kernel 1 errors are: " << n_error << endl;
 
-        // Get times
-        float milliseconds = 0;
-        cudaEventElapsedTime(&milliseconds, start, stop);
+        // KERNEL 2
+        cudaEventRecord(start);
+        bzero(res, ROWS * sizeof(float));
+        SpMV_B<<<n_blocks, n_thread_per_block>>>(x, y, vals, vec, res, NON_ZERO);
+        cudaEventRecord(stop);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&gpu_times[1], start, stop);
+        // Check for errors
+        for (int i = 0; i < ROWS; i++) {
+            if (fabs(res_control[i] - res[i]) > res_control[i] * 0.01) {
+                cout << "INFO: data error: " << res[i] << " vs " << res_control[i] << endl;
+                n_error++;
+            }
+        }
+        cout << "After kernel 2 errors are:  " << n_error << endl;
+
         if (cycle >= 0) {
-            cout << "|--> Kernel Time (id " << cycle << "): " << milliseconds << "ms [cpu took " << cpu_time << " ms]"
-                 << endl;
-            sum_times += milliseconds;
+            cout << "|--> Kernel Time (id " << cycle << "): ";
+            for (int i = 0; i < N_GPU_KERNEL; i++) {
+                sum_times[i] += gpu_times[i];
+                cout << "[id=" << i << "] => " << gpu_times[i] << "ms ";
+            }
+            cout << "[cpu " << cpu_time << " ms]" << endl;
+
             sum_cpu_times += cpu_time;
         }
     }
 
-    cout << "|-----> Kernel Time (average): " << sum_times / CYCLES << " ms [cpu took " << sum_cpu_times / CYCLES << " ms]\n\n"
+    cout << "|-----> Kernel Time (average): ";
+    for (int i = 0; i < N_GPU_KERNEL; i++) {
+        cout << "[id=" << i << "] => " << sum_times[i] / CYCLES << "ms ";
+    }
+    cout << "[cpu " << sum_cpu_times / CYCLES << " ms]\n\n"
          << endl;
 
     if (n_error > 0) {
@@ -169,4 +202,8 @@ int main(void) {
     cudaFree(x);
     cudaFree(y);
     cudaFree(res);
+
+    // full time
+    TIMER_STOP(1);
+    cout << "TOTAL PROGRAM TIME: " << TIMER_ELAPSED(1) / 1.e3 << "ms" << endl;
 }
