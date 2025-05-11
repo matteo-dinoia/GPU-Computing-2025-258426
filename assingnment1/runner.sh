@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 module load CUDA/12.5 || exit;
 
-nvcc --gpu-architecture=sm_80 -m64 -o compiled.exec $1 || exit;
+make all || exit;
 
 rm -f result.err
 rm -f result.out

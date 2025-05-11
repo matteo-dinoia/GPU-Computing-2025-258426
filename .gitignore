@@ -3,6 +3,6 @@
 *.tar.gz
 
 # Compiled
-*.exec
+build/
 *.err
 *.out

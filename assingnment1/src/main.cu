@@ -7,6 +7,11 @@
 #include "include/time_utils.h"
 #include <cuda_runtime.h>
 
+using std::cout;
+using std::endl;
+using std::min;
+using std::max;
+
 #define MAX_THREAD_PER_BLOCK 1024
 #define MAX_WARP 32
 #define MAX_BLOCK 256
@@ -18,14 +23,9 @@
 #define OK true
 #define ERR false
 
-
-
-#define eprintf(...) fprintf(stderr, __VA_ARGS__)
-using namespace std;
-
 // Kernel function to add the elements of two arrays
 // ASSUME it is zeroed the res vector
-__global__ void SpMV_A(const int *x, const int *y, const M_TYPE *val, const M_TYPE *vec, M_TYPE *res, int NON_ZERO) {
+__global__ void SpMV_A(const int *x, const int *y, const float *val, const float *vec, float *res, int NON_ZERO) {
     int n_threads = gridDim.x * blockDim.x;
     int per_thread = (int)ceil(NON_ZERO / (float)n_threads);
     int start_i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -42,7 +42,7 @@ __global__ void SpMV_A(const int *x, const int *y, const M_TYPE *val, const M_TY
 
 // Kernel function to add the elements of two arrays
 // ASSUME it is zeroed the res vector
-__global__ void SpMV_B(const int *x, const int *y, const M_TYPE *val, const M_TYPE *vec, M_TYPE *res, int NON_ZERO) {
+__global__ void SpMV_B(const int *x, const int *y, const float *val, const float *vec, float *res, int NON_ZERO) {
     int n_threads = gridDim.x * blockDim.x;
     int per_thread = (int)ceil(NON_ZERO / (float)n_threads);
     int start_i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -57,7 +57,7 @@ __global__ void SpMV_B(const int *x, const int *y, const M_TYPE *val, const M_TY
 }
 
 // ASSUME it is zeroed the res vector
-void gemm_sparse_cpu(const int *cx, const int *cy, const M_TYPE *vals, const M_TYPE *vec, M_TYPE *res, const int NON_ZERO) {
+void gemm_sparse_cpu(const int *cx, const int *cy, const float *vals, const float *vec, float *res, const int NON_ZERO) {
     if (cx == NULL || cy == NULL || vals == NULL || vec == NULL || res == NULL) {
         printf("NULL pointeri in GEMM sparse\n");
         return;
@@ -71,7 +71,7 @@ void gemm_sparse_cpu(const int *cx, const int *cy, const M_TYPE *vals, const M_T
     }
 }
 
-int main(void) {
+int run() {
     TIMER_DEF(1);
     TIMER_START(1);
     cudaEvent_t start, stop;
@@ -79,12 +79,12 @@ int main(void) {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    int NON_ZERO, ROWS, COLS;
+    struct Coo matrix;
     FILE *file;
     // HEADER READING --------------------------------------------------------------
     TIMER_TIME(0, {
         file = fopen(INPUT_FILENAME, "r");
-        const bool status = read_mtx_header(file, &ROWS, &COLS, &NON_ZERO);
+        const bool status = read_mtx_header(file, &matrix);
         if (status == ERR) {
             //TODO DON'T LEAK
             cout << "FATAL: fail to read header" << endl;
@@ -92,21 +92,19 @@ int main(void) {
         }
     });
     cout << "READ HEADER: " << TIMER_ELAPSED(0) / 1.e3 << "ms" << endl;
-    cout << "Header: " << ROWS << " " << COLS << " " << NON_ZERO << endl;
+    cout << "Header: " << matrix.ROWS << " " << matrix.COLS << " " << matrix.NON_ZERO << endl;
 
-    int *x, *y;
-    M_TYPE *vals, *vec, *res, *res_control;
-
-    cudaMallocManaged(&x, NON_ZERO * sizeof(int));
-    cudaMallocManaged(&y, NON_ZERO * sizeof(int));
-    cudaMallocManaged(&vals, NON_ZERO * sizeof(M_TYPE));
-    cudaMallocManaged(&vec, COLS * sizeof(M_TYPE));
-    cudaMallocManaged(&res, ROWS * sizeof(M_TYPE));
-    res_control = (float *)malloc(ROWS * sizeof(float));
+    float *vec, *res, *res_control;
+    cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(int));
+    cudaMallocManaged(&matrix.ys, matrix.NON_ZERO * sizeof(int));
+    cudaMallocManaged(&matrix.vals, matrix.NON_ZERO * sizeof(float));
+    cudaMallocManaged(&vec, matrix.COLS * sizeof(float));
+    cudaMallocManaged(&res, matrix.ROWS * sizeof(float));
+    res_control = (float *)malloc(matrix.ROWS * sizeof(float));
 
     // CREAZIONE DATA --------------------------------------------------------------
     TIMER_TIME(0, {
-        const bool status = read_mtx_data(file, x, y, vals, NON_ZERO);
+        const bool status = read_mtx_data(file, &matrix);
         if (status == ERR) {
             //TODO DON'T LEAK
             cout << "FATAL: fail to read data" << endl;
@@ -124,32 +122,32 @@ int main(void) {
     int n_error = 0;
     int cycle;
 
-    int n_blocks = min(MAX_BLOCK, (int)ceil(NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
-    int n_thread_per_block = min(MAX_THREAD_PER_BLOCK, NON_ZERO);
+    int n_blocks = min(MAX_BLOCK, (int)ceil(matrix.NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
+    int n_thread_per_block = min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
     cout << "Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>" << endl;
 
     // Allocate Unified Memory accessible from CPU or GPU
     for (cycle = -WARMUP_CYCLES; cycle < CYCLES /*&& n_error == 0*/; cycle++) {
         n_error = 0; //TODO REmove
         // initialize vec arrays with random values
-        for (int i = 0; i < COLS; i++) {
+        for (int i = 0; i < matrix.COLS; i++) {
             vec[i] = rand() % 50; //TODO Use float value
         }
 
         // Run cpu version
-        bzero(res_control, ROWS * sizeof(float));
-        TIMER_TIME(0, gemm_sparse_cpu(x, y, vals, vec, res_control, NON_ZERO));
+        bzero(res_control, matrix.ROWS * sizeof(float));
+        TIMER_TIME(0, gemm_sparse_cpu(matrix.xs, matrix.ys, matrix.vals, vec, res_control, matrix.NON_ZERO));
         cpu_time = TIMER_ELAPSED(0) / 1.e3;
 
         // KERNEL 1
         cudaEventRecord(start);
-        bzero(res, ROWS * sizeof(float));
-        SpMV_A<<<n_blocks, n_thread_per_block>>>(x, y, vals, vec, res, NON_ZERO);
+        bzero(res, matrix.ROWS * sizeof(float));
+        SpMV_A<<<n_blocks, n_thread_per_block>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&gpu_times[0], start, stop);
         // Check for errors
-        for (int i = 0; i < ROWS; i++) {
+        for (int i = 0; i < matrix.ROWS; i++) {
             if (fabs(res_control[i] - res[i]) > res_control[i] * 0.01) {
                 cout << "INFO: data error: " << res[i] << " vs " << res_control[i] << endl;
                 n_error++;
@@ -159,13 +157,13 @@ int main(void) {
 
         // KERNEL 2
         cudaEventRecord(start);
-        bzero(res, ROWS * sizeof(float));
-        SpMV_B<<<n_blocks, n_thread_per_block>>>(x, y, vals, vec, res, NON_ZERO);
+        bzero(res, matrix.ROWS * sizeof(float));
+        SpMV_B<<<n_blocks, n_thread_per_block>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
         cudaEventRecord(stop);
         cudaEventSynchronize(stop);
         cudaEventElapsedTime(&gpu_times[1], start, stop);
         // Check for errors
-        for (int i = 0; i < ROWS; i++) {
+        for (int i = 0; i < matrix.ROWS; i++) {
             if (fabs(res_control[i] - res[i]) > res_control[i] * 0.01) {
                 cout << "INFO: data error: " << res[i] << " vs " << res_control[i] << endl;
                 n_error++;
@@ -199,11 +197,15 @@ int main(void) {
     // Free memory
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    cudaFree(x);
-    cudaFree(y);
+    cudaFree(matrix.xs);
+    cudaFree(matrix.ys);
+    cudaFree(matrix.vals);
     cudaFree(res);
+    cudaFree(res_control);
 
     // full time
     TIMER_STOP(1);
     cout << "TOTAL PROGRAM TIME: " << TIMER_ELAPSED(1) / 1.e3 << "ms" << endl;
+
+    return 0;
 }

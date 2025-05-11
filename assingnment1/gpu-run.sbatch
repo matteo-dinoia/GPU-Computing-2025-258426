@@ -8,4 +8,4 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 
-./compiled.exec
+./build/main
