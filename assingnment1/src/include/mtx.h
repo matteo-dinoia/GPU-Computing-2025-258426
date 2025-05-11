@@ -1,6 +1,11 @@
 #ifndef MTX_H
 #define MTX_H
 
+#define OK true
+#define ERR false
+
+#include <iostream>
+
 struct Coo {
     int NON_ZERO;
     int ROWS;

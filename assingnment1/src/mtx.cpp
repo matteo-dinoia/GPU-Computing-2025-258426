@@ -5,7 +5,7 @@
 bool read_mtx_header(FILE *file, struct Coo *matrix) {
     if (matrix == NULL) {
         printf("Null pointer in read mtx header is null");
-        return false;
+        return ERR;
     }
 
     // Skip any initial whitespace or comments
@@ -27,7 +27,7 @@ bool read_mtx_header(FILE *file, struct Coo *matrix) {
 bool read_mtx_data(FILE *file, const struct Coo *matrix) {
     if (matrix == NULL) {
         printf("Null pointer in read mtx data is null");
-        return false;
+        return ERR;
     }
 
     int row, col;
@@ -46,5 +46,5 @@ bool read_mtx_data(FILE *file, const struct Coo *matrix) {
     }
 
     // TODO re-add len check
-    return true;
+    return OK;
 }
