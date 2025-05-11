@@ -1,0 +1,8 @@
+# Matrix
+*.mtx
+*.tar.gz
+
+# Compiled
+*.exec
+*.err
+*.out
