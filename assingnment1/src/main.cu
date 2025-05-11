@@ -26,6 +26,7 @@ using std::max;
 bool read_data(struct Coo *);
 void execution(const struct Coo, float *, float *, float *);
 int timed_main();
+int diff_size(float *, float *, int);
 
 int main() {
     int ret;
@@ -41,7 +42,7 @@ int main() {
 
 int timed_main() {
     // Data allocation
-    struct Coo matrix;
+    struct Coo matrix = {0, 0, 0, NULL, NULL};
     float *vec = NULL, *res = NULL, *res_control = NULL;
 
     // Data read
@@ -67,30 +68,28 @@ int timed_main() {
 }
 
 void execution(const struct Coo matrix, float *vec, float *res, float *res_control) {
-    TIMER_DEF(0);
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    int N_GPU_KERNEL = 2;
-    float gpu_times[N_GPU_KERNEL] = {0};
-    double cpu_time = 0;
-    double sum_times[N_GPU_KERNEL] = {0};
-    double sum_cpu_times = 0;
-    srand(time(0));
-    int n_error = 0;
-    int cycle;
-
     int n_blocks = min(MAX_BLOCK, (int)ceil(matrix.NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
     int n_thread_per_block = min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
     cout << "Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>" << endl;
 
-    // Allocate Unified Memory accessible from CPU or GPU
-    for (cycle = -WARMUP_CYCLES; cycle < CYCLES /*&& n_error == 0*/; cycle++) {
-        n_error = 0; //TODO REmove
+    srand(time(0));
+    TIMER_DEF(0);
+    GPU_TIMER_DEF();
+    int n_error = 0;
+
+    // Time definition
+    int N_GPU_KERNEL = 2;
+    float gpu_times[N_GPU_KERNEL] = {0};
+    double sum_times[N_GPU_KERNEL] = {0};
+    double cpu_time = 0;
+    double sum_cpu_times = 0;
+
+    // Execute multiple time
+    int cycle;
+    for (int cycle = -WARMUP_CYCLES; cycle < CYCLES; cycle++) {
         // initialize vec arrays with random values
         for (int i = 0; i < matrix.COLS; i++) {
-            vec[i] = rand() % 50; //TODO Use float value
+            vec[i] = rand() % 50;
         }
 
         // Run cpu version
@@ -99,36 +98,20 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
         cpu_time = TIMER_ELAPSED(0) / 1.e3;
 
         // KERNEL 1
-        cudaEventRecord(start);
         bzero(res, matrix.ROWS * sizeof(float));
+        GPU_TIMER_START();
         SpMV_A<<<n_blocks, n_thread_per_block>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&gpu_times[0], start, stop);
+        GPU_TIMER_STOP(&gpu_times[0]);
         // Check for errors
-        for (int i = 0; i < matrix.ROWS; i++) {
-            if (fabs(res_control[i] - res[i]) > res_control[i] * 0.01) {
-                cout << "INFO: data error: " << res[i] << " vs " << res_control[i] << endl;
-                n_error++;
-            }
-        }
-        cout << "After kernel 1 errors are: " << n_error << endl;
+        n_error += diff_size(res, res_control, matrix.ROWS);
 
         // KERNEL 2
-        cudaEventRecord(start);
         bzero(res, matrix.ROWS * sizeof(float));
+        GPU_TIMER_START();
         SpMV_B<<<n_blocks, n_thread_per_block>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
-        cudaEventRecord(stop);
-        cudaEventSynchronize(stop);
-        cudaEventElapsedTime(&gpu_times[1], start, stop);
+        GPU_TIMER_STOP(&gpu_times[1]);
         // Check for errors
-        for (int i = 0; i < matrix.ROWS; i++) {
-            if (fabs(res_control[i] - res[i]) > res_control[i] * 0.01) {
-                cout << "INFO: data error: " << res[i] << " vs " << res_control[i] << endl;
-                n_error++;
-            }
-        }
-        cout << "After kernel 2 errors are:  " << n_error << endl;
+        n_error += diff_size(res, res_control, matrix.ROWS);
 
         if (cycle >= 0) {
             cout << "|--> Kernel Time (id " << cycle << "): ";
@@ -144,9 +127,9 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
 
     cout << "|-----> Kernel Time (average): ";
     for (int i = 0; i < N_GPU_KERNEL; i++) {
-        cout << "[id=" << i << "] => " << sum_times[i] / CYCLES << "ms ";
+        cout << "[id=" << i << "] => " << sum_times[i] / cycle << "ms ";
     }
-    cout << "[cpu " << sum_cpu_times / CYCLES << " ms]\n\n"
+    cout << "[cpu " << sum_cpu_times / cycle << " ms]\n\n"
          << endl;
 
     if (n_error > 0) {
@@ -157,7 +140,19 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
     cudaEventDestroy(stop);
 }
 
-// TODO better error handling
+int diff_size(float *v, float *control, int LEN) {
+    int n_error = 0;
+
+    for (int i = 0; i < LEN; i++) {
+        if (fabs(v[i] - control[i]) > control[i] * 0.01) {
+            //cout << "INFO: data error: " << a[i] << " vs expected " << control[i] << endl;
+            n_error++;
+        }
+    }
+
+    return n_error;
+}
+
 bool read_data(struct Coo *matrix) {
     FILE *file = fopen(INPUT_FILENAME, "r");
     TIMER_DEF(2);
