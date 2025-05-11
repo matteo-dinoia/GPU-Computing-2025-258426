@@ -10,8 +10,19 @@
 #define TIMER_TIME(n, op) \
     TIMER_START(n);       \
     op;                   \
-    TIMER_STOP(n);
+    TIMER_STOP(n)
 #define TIMER_ELAPSED(n) ((temp_2_##n.tv_sec - temp_1_##n.tv_sec) * 1.e6 + (temp_2_##n.tv_usec - temp_1_##n.tv_usec))
+
+#define GPU_TIMER_DEF()      \
+    cudaEvent_t start, stop; \
+    cudaEventCreate(&start); \
+    cudaEventCreate(&stop)
+#define GPU_TIMER_START() \
+    cudaEventRecord(start)
+#define GPU_TIMER_STOP(pointer_pos) \
+    cudaEventRecord(stop);          \
+    cudaEventSynchronize(stop);     \
+    cudaEventElapsedTime(pointer_pos, start, stop)
 
 
 double average(const double *, const int);
