@@ -47,7 +47,7 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
 
         // Run cpu version
         bzero(res_control, matrix.ROWS * sizeof(float));
-        TIMER_TIME(0, gemm_sparse_cpu(matrix.xs, matrix.ys, matrix.vals, vec, res_control, matrix.NON_ZERO));
+        TIMER_TIME(0, spmv_cpu(matrix.xs, matrix.ys, matrix.vals, vec, res_control, matrix.NON_ZERO));
         cpu_time = TIMER_ELAPSED(0) / 1.e3;
 
         // KERNEL 1
