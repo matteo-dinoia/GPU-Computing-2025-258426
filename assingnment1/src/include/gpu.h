@@ -1,9 +1,8 @@
-#ifndef GPU_H
-#define GPU_H
+#pragma once
 
+typedef void (*kernel_func)(const int *, const int *, const float *, const float *, float *, int);
 
-__global__ void SpMV_A(const int *, const int *, const float *, const float *, float *, int);
-__global__ void SpMV_B(const int *, const int *, const float *, const float *, float *, int);
-
-
-#endif
+void spmv_a(const int *, const int *, const float *, const float *, float *, int);
+void spmv_b(const int *, const int *, const float *, const float *, float *, int);
+void spmv_c(const int *, const int *, const float *, const float *, float *, int);
+void spmv_d(const int *, const int *, const float *, const float *, float *, int);
