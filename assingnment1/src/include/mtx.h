@@ -16,7 +16,7 @@ struct Coo {
 
 // Function to skip comments and read metadata from the MTX file
 // Transpose matrix so that it is sorted like i want it
-bool read_mtx_header(FILE *, struct Coo *);
+bool read_mtx_header(std::ifstream &file, struct Coo *);
 
 // Transpose matrix so that it is sorted like i want it
-bool read_mtx_data(FILE *, const struct Coo *);
+bool read_mtx_data(std::ifstream &file, const struct Coo *);

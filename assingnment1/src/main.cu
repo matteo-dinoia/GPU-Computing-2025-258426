@@ -1,4 +1,8 @@
+#include <fcntl.h>
 #include <iostream>
+#include <fstream>
+#include <vector>
+#include <memory>
 
 #include "include/mtx.h"
 #include "include/time_utils.h"
@@ -6,7 +10,7 @@
 
 using std::cout, std::endl;
 
-int timed_main(char *);
+int timed_main(const char *);
 
 int main(int argc, char **argv) {
     int ret = 1;
@@ -23,19 +27,20 @@ int main(int argc, char **argv) {
     return ret;
 }
 
-int timed_main(char *input_file) {
+int timed_main(const char *input_file) {
     // Data allocation
     struct Coo matrix = {0, 0, 0, NULL, NULL, NULL};
     float *vec = NULL;
     float *res = NULL;
     float *res_control = NULL;
-    FILE *file = NULL;
     bool status = OK;
     TIMER_DEF(2);
 
     // File opener
-    file = fopen(input_file, "r");
-    if (file == NULL) {
+    std::ifstream file(input_file);
+    std::ios_base::sync_with_stdio(false);
+    file.tie(NULL);
+    if (!file.is_open()) {
         cout << "FATAL: couldn't open the file" << endl;
         status = ERR;
         goto free;
@@ -47,8 +52,8 @@ int timed_main(char *input_file) {
         cout << "FATAL: fail to read header" << endl;
         goto free;
     }
-    cout << "READ HEADER: " << TIMER_ELAPSED(2) / 1.e3 << "ms" << endl;
-    cout << "#Header: " << matrix.ROWS << " " << matrix.COLS << " " << matrix.NON_ZERO << endl;
+    cout << "# READ HEADER: " << TIMER_ELAPSED(2) / 1.e3 << "ms" << endl;
+    cout << "# Header: " << matrix.ROWS << " " << matrix.COLS << " " << matrix.NON_ZERO << endl;
 
     // Alloc memory
     cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(int));
@@ -58,10 +63,10 @@ int timed_main(char *input_file) {
     // Reading data
     TIMER_TIME(2, { status = read_mtx_data(file, &matrix); });
     if (status == ERR) {
-        cout << "FATAL: fail to read header" << endl;
+        cout << "FATAL: fail to read data" << endl;
         goto free;
     }
-    cout << "READ DATA: " << TIMER_ELAPSED(2) / 1.e3 << "ms" << endl;
+    cout << "# READ DATA: " << TIMER_ELAPSED(2) / 1.e3 << "ms" << endl;
 
     // Execution
     cudaMallocManaged(&vec, matrix.COLS * sizeof(float));
@@ -71,12 +76,13 @@ int timed_main(char *input_file) {
     execution(matrix, vec, res, res_control);
 
 free:
-    // Free memory
+    // Free memory and close resources
+    file.close();
+    free(res_control);
     cudaFree(matrix.xs);
     cudaFree(matrix.ys);
     cudaFree(matrix.vals);
     cudaFree(vec);
     cudaFree(res);
-    free(res_control);
     return status == OK ? 0 : 1;
 }

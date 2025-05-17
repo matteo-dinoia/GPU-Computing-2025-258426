@@ -23,7 +23,8 @@ int diff_size(float *, float *, int);
 void execution(const struct Coo matrix, float *vec, float *res, float *res_control) {
     int n_blocks = std::min(MAX_BLOCK, (int)ceil(matrix.NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
     int n_thread_per_block = std::min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
-    cout << "Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>" << endl;
+    cout << "# Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>\n"
+         << endl;
 
     srand(time(0));
     TIMER_DEF(0);
