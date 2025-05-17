@@ -13,33 +13,34 @@
 #define MAX_BLOCK 256
 
 #define CYCLES 10
-#define WARMUP_CYCLES 0
+#define WARMUP_CYCLES 2
 
-using std::cout;
-using std::endl;
+using std::cout, std::endl;
 
 int diff_size(float *, float *, int);
 
+
 void execution(const struct Coo matrix, float *vec, float *res, float *res_control) {
-    int n_blocks = min(MAX_BLOCK, (int)ceil(matrix.NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
-    int n_thread_per_block = min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
+    int n_blocks = std::min(MAX_BLOCK, (int)ceil(matrix.NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
+    int n_thread_per_block = std::min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
     cout << "Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>" << endl;
 
     srand(time(0));
     TIMER_DEF(0);
     GPU_TIMER_DEF();
-    int n_error = 0;
 
     // Time definition
-    int N_GPU_KERNEL = 2;
+    const int N_GPU_KERNEL = 4;
+    kernel_func kernels[N_GPU_KERNEL] = {spmv_a, spmv_b, spmv_c, spmv_d};
     float gpu_times[N_GPU_KERNEL] = {0};
     double sum_times[N_GPU_KERNEL] = {0};
+    int gpu_errors[N_GPU_KERNEL] = {0};
     double cpu_time = 0;
     double sum_cpu_times = 0;
 
     // Execute multiple time
     int cycle;
-    for (int cycle = -WARMUP_CYCLES; cycle < CYCLES; cycle++) {
+    for (cycle = -WARMUP_CYCLES; cycle < CYCLES; cycle++) {
         // initialize vec arrays with random values
         for (int i = 0; i < matrix.COLS; i++) {
             vec[i] = rand() % 50;
@@ -50,48 +51,50 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
         TIMER_TIME(0, spmv_cpu(matrix.xs, matrix.ys, matrix.vals, vec, res_control, matrix.NON_ZERO));
         cpu_time = TIMER_ELAPSED(0) / 1.e3;
 
-        // KERNEL 1
-        bzero(res, matrix.ROWS * sizeof(float));
-        GPU_TIMER_START();
-        SpMV_A<<<n_blocks, n_thread_per_block>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
-        GPU_TIMER_STOP(&gpu_times[0]);
-        // Check for errors
-        n_error += diff_size(res, res_control, matrix.ROWS);
+        // KERNELS
+        for (int i = 0; i < N_GPU_KERNEL; i++) {
+            bzero(res, matrix.ROWS * sizeof(float));
+            GPU_TIMER_START();
+            kernels[i]<<<n_blocks, n_thread_per_block>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
+            GPU_TIMER_STOP(&gpu_times[i]);
 
-        // KERNEL 2
-        bzero(res, matrix.ROWS * sizeof(float));
-        GPU_TIMER_START();
-        SpMV_B<<<n_blocks, n_thread_per_block>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
-        GPU_TIMER_STOP(&gpu_times[1]);
-        // Check for errors
-        n_error += diff_size(res, res_control, matrix.ROWS);
+            gpu_errors[i] += diff_size(res, res_control, matrix.ROWS);
+        }
 
+        // Save times
         if (cycle >= 0) {
             cout << "|--> Kernel Time (id " << cycle << "): ";
             for (int i = 0; i < N_GPU_KERNEL; i++) {
                 sum_times[i] += gpu_times[i];
-                cout << "[id=" << i << "] => " << gpu_times[i] << "ms ";
+                cout << "[id=" << i << "]=> " << gpu_times[i] << "ms";
             }
-            cout << "[cpu " << cpu_time << " ms]" << endl;
+            cout << "[cpu]=> " << cpu_time << " ms" << endl;
 
             sum_cpu_times += cpu_time;
         }
     }
 
-    cout << "|-----> Kernel Time (average): ";
+    cout << "|" << endl;
+    cout << "|-----> Kernel Time (average):" << endl;
     for (int i = 0; i < N_GPU_KERNEL; i++) {
-        cout << "[id=" << i << "] => " << sum_times[i] / cycle << "ms ";
+        double avg = sum_times[i] / cycle;
+        double flops = matrix.NON_ZERO * 2 / (avg / 1.e3);
+        cout << "|---------->[ id =" << i << " ]=> " << avg << "ms (" << flops / 1e9 << " Gflops) with # error " << gpu_errors[i] << endl;
     }
-    cout << "[cpu " << sum_cpu_times / cycle << " ms]\n\n"
+
+    double cpu_avg = sum_cpu_times / cycle;
+    double cpu_flops = matrix.NON_ZERO * 2 / (cpu_avg / 1.e3);
+    cout << "|---------->[  cpu  ]=> " << cpu_avg << " ms (" << cpu_flops / 1e9 << " Gflops) \n\n"
          << endl;
 
-    if (n_error > 0) {
+    /*if (n_error > 0) {
         cout << "There were " << n_error << " errors in the array (cycle " << cycle - 1 << ")" << endl;
-    }
+    }*/
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
 }
+
 
 int diff_size(float *v, float *control, int LEN) {
     int n_error = 0;
