@@ -1,5 +1,4 @@
-#ifndef MTX_H
-#define MTX_H
+#pragma once
 
 #define OK true
 #define ERR false
@@ -21,5 +20,3 @@ bool read_mtx_header(FILE *, struct Coo *);
 
 // Transpose matrix so that it is sorted like i want it
 bool read_mtx_data(FILE *, const struct Coo *);
-
-#endif //MTX_H

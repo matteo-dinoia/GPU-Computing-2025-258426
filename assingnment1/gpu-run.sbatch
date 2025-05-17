@@ -8,4 +8,5 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=1
 
-./build/main
+./build/main $1
+touch finished.out

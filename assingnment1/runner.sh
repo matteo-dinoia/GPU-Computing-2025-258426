@@ -1,20 +1,16 @@
 #!/usr/bin/bash
-module load CUDA/12.5 || exit;
+# require "rsync"
 
-make all || exit;
+# possible datasets
+# datasets/circuit5M_dc.mtx datasets/mawi_201512020330.mtx datasets/mycielskian3.mtx
 
-rm -f result.err
-rm -f result.out
+DEST="assignment1/"
+TO_COPY="int-runner.sh Makefile gpu-run.sbatch src"
 
-sbatch gpu-run.sbatch || exit;
+# EXECUTE ON CLUSTER
+echo "COPYING FILES"
+rsync -e 'ssh -i ~/.ssh/cluster' -aup --delete $TO_COPY src matteo.dinoia@baldo.disi.unitn.it:$DEST
 
-#echo "WAITING: Put in queue."
-#sleep 5;
-until [ -e ./result.err ]; do sleep 1; done
-until [ -e ./result.out ]; do sleep 1; done
-sleep 1;
-
-cat ./result.err
-echo "###################################################"
-cat ./result.out
-
+# EXECUTE IT
+COMMAND="cd assignment1 && ./int-runner.sh $1"
+ssh -i ~/.ssh/cluster matteo.dinoia@baldo.disi.unitn.it $COMMAND

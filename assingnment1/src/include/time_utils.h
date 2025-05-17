@@ -1,5 +1,4 @@
-#ifndef LAB1_EX2_LIB
-#define LAB1_EX2_LIB
+#pragma once
 
 #include <sys/time.h>
 
@@ -28,5 +27,3 @@
 double average(const double *, const int);
 double variance(const double *, const double, const int);
 void print_time_data(const char *, const double *, const int, const int);
-
-#endif
