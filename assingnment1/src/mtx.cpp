@@ -1,10 +1,12 @@
+#include <iostream>
 #include <stdbool.h>
-#include <stdio.h>
 #include "include/mtx.h"
+
+using std::cout, std::endl;
 
 bool read_mtx_header(FILE *file, struct Coo *matrix) {
     if (matrix == NULL) {
-        printf("Null pointer in read mtx header is null");
+        cout << "Null pointer in read mtx header is null" << endl;
         return ERR;
     }
 
@@ -26,7 +28,7 @@ bool read_mtx_header(FILE *file, struct Coo *matrix) {
 // Transpose matrix so that it is sorted like i want it
 bool read_mtx_data(FILE *file, const struct Coo *matrix) {
     if (matrix == NULL) {
-        printf("Null pointer in read mtx data is null");
+        cout << "Null pointer in read mtx data is null" << endl;
         return ERR;
     }
 
