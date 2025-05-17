@@ -5,7 +5,7 @@
 BLAS_LIB=/opt/shares/openfoam/software/OpenBLAS/0.3.23-GCC-12.3.0
 CC=gcc
 
-OPT=-g -O0
+OPT=-g -O0 -Wall
 INCLUDE=-lm
 CFLAGS=$(OPT) $(INCLUDE)
 
