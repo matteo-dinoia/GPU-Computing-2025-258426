@@ -1,6 +1,3 @@
-#ifndef TESTER_H
-#define TESTER_H
+#pragma once
 
 void execution(const struct Coo, float *, float *, float *);
-
-#endif
