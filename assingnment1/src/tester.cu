@@ -38,13 +38,10 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
     double cpu_time = 0;
     double sum_cpu_times = 0;
 
-    // Execute multiple time
-    int cycle;
-    for (cycle = -WARMUP_CYCLES; cycle < CYCLES; cycle++) {
-        // initialize vec arrays with random values
-        for (int i = 0; i < matrix.COLS; i++) {
-            vec[i] = rand() % 50;
-        }
+    // initialize vec arrays with random values
+    for (int i = 0; i < matrix.COLS; i++) {
+        vec[i] = rand() % 50;
+    }
 
         // Run cpu version
         bzero(res_control, matrix.ROWS * sizeof(float));
@@ -86,10 +83,6 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
     double cpu_flops = matrix.NON_ZERO * 2 / (cpu_avg / 1.e3);
     cout << "|---------->[  cpu  ]=> " << cpu_avg << " ms (" << cpu_flops / 1e9 << " Gflops) \n\n"
          << endl;
-
-    /*if (n_error > 0) {
-        cout << "There were " << n_error << " errors in the array (cycle " << cycle - 1 << ")" << endl;
-    }*/
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
