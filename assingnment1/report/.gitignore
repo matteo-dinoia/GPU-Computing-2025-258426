@@ -1,0 +1,11 @@
+# temporarely until stabilization
+*.png
+
+# output
+*.aux
+*.bbl
+*.blg
+*.log
+*.gz
+*.bib
+*.pdf
