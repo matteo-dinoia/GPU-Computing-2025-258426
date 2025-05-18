@@ -9,7 +9,6 @@
 #include "include/tester.h"
 
 #define MAX_THREAD_PER_BLOCK 1024
-#define MAX_WARP 32
 #define MAX_BLOCK 256
 
 #define CYCLES 10
