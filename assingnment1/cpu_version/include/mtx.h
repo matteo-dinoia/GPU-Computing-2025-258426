@@ -32,10 +32,10 @@ bool read_mtx_data(FILE *file, int *coords_x, int *coords_y, M_TYPE *vals, const
         return false;
     }
     int row, col;
-    double value;
+    M_TYPE value;
     int i = 0;
 
-    while (fscanf(file, "%d %d %lf", &col, &row, &value) == 3) {
+    while (fscanf(file, "%d %d %f", &col, &row, &value) == 3) {
         // Store the entry (adjust 1-based index to 0-based)
         coords_x[i] = col - 1;
         coords_y[i] = row - 1;
