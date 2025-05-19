@@ -279,12 +279,12 @@ It was then measured the average time (over 10 cycles with 2 warmup). Time wise 
 	\end{adjustbox}
 	\vspace{1em}
 
-	\caption{Valgrind's cachegrind tool results}
+	\caption{CPU performance over datasets}
 	\label{tab:time-cpu-results}
 \end{table}
 
 \FloatBarrier
-Unfortunately due to time constraints and technical problem with Valgrind over the cluster, it was not possible to further analyze if these CSR loss are cause by a high cache miss. But it may be the case that with larger sample COO may be faster because of higher hit rate.
+Unfortunately due to time constraints and technical problem with Valgrind over the cluster, it was not possible to further analyze if these CSR loss are cause by a high cache misses. But it may be the case that with larger sample COO may be faster because of higher hit rate.
 
 \subsection{GPU implementations}
 The simple idea in Algorithm \ref{alg:COO_GPU} can be implemented in various ways, the tested in this paper are:
@@ -313,42 +313,42 @@ It was, then, tested the performance of them, with respect to the number of thre
 
 Also as expected the two graph look very alike. That is because the A30 only has 4 SM with each a warp of size 32 so increasing the value above this values is the same if similar if done via block size or number of blocks.
 
+
+\begin{figure}
+	\centering
+	\includegraphics[width=0.9\linewidth]{data_images/perf_gpu}
+	\caption{Performance of the kernels based on dataset}
+	\label{fig:perf-gpu}
+\end{figure}
+\FloatBarrier
+As expected the worst performance are on the smallest dataset. That is because GPU are optimized for throughput and as such they have higher latency which is the cause of that performance. Also because it is so small the comparison between the various kernel become meaningless and more importance is put on the various overhead (eg. creating a kernel).
+
+Finally we can node how, ignoring Model7, the "Kernel warp size" has the most reliable performance as expected while sometimes the "Kernel block size" has better performance but not always.
+
+
 \begin{table}[hbt!]
 	\centering
 	\begin{adjustbox}{width=\columnwidth}
-		\begin{tabular}{lrrrrc}
+		\begin{tabular}{lcccc}
 			\toprule
-			\textbf{Dataset} & \multicolumn{1}{c}{$\mathbf{|V|}$} & \multicolumn{1}{c}{$\mathbf{|E|}$} & \multicolumn{1}{c}{\textbf{Avg. Degree}} & \textbf{Diameter} & \textbf{Benchmark} \\
+			\textbf{Kernel} & \textbf{Mawi} & \textbf{Delaunay} & \textbf{Circuit5c} & \textbf{Model7}\\
 			\midrule
-			com-youtube \cite{snapnets} & 1,134,890 & 2,987,624 & 5.27 & 20 & \multirow{5}{*}{\shortstack[t]{Naive vs optimized CPU}}\\
-			amazon-ratings \cite{rossi2015network}& 2,146,057 & 5,743,146 & 5.35 & 28& \\
-			cit-patents \cite{rossi2015network} & 3,764,117 & 16,511,741 & 8.77 & 26&\\
-			com-lj \cite{rossi2015network}&3,997,962 & 34,681,189 &17.35 &17 &\\
-			dblp \cite{rossi2015network}& 4,000,148 & 8,649,011 &4.32 &50 &\\
-			\midrule
-			flickr-link \cite{alghamdi2017benchmark} &1,624,992&15,472,576&19.04&24 &\multirow{4}{*}{\shortstack[c]{CPU vs GPU}} \\
-			Wiki-Talk \cite{alghamdi2017benchmark} & 2,388,953&4,656,682&3.90&9 &\\
-			com-Orkut \cite{snapnets} &3,072,441&117,185,083&76.28&9 &\\
-			dbpedia-link \cite{alghamdi2017benchmark} &18,265,512&126,888,089&13.98&12 &\\
+			Kernel 1 size & 15.1 GB/s & 46.7 GB/s & 56.1 GB/s & 4.08 GB/s\\
+			Kernel threads size GB/s & 19.8 GB/s & 136 GB/s & 202 GB/s & 3.6 GB/s\\
+			Kernel warp size & 20.5 GB/s & 198 GB/s & 361 GB/s & 3.74 GB/s\\
+			Kernel blocks size & 21.1 GB/s & 172 GB/s & 341 GB/s & 2.8 GB/s\\
 			\bottomrule
 		\end{tabular}
 	\end{adjustbox}
 	\vspace{1em}
 
-	\caption{Valgrind's cachegrind tool results}
-	\label{tab:results}
+	\caption{Results in table format}
+	\label{tab:gpu-results}
 \end{table}
-
-\begin{figure}[hbt!]
-    \centering
-    \includegraphics[width=0.95\linewidth]{SampleImage.png}
-    \caption{Caption}
-    \label{fig:enter-label}
-\end{figure}
 
 \FloatBarrier
 \section{Conclusions}
-In conclusion COO present various problematic for parallelization, requiring atomic operation, differently from the CSR implementation. Because of this the performance obtained are even worse than the theoretical worse case, as it is possible to see in Image \ref{fig:roofline} .
+In conclusion COO present various problematic for parallelization, requiring atomic operation, differently from the CSR implementation. Because of this the performance obtained are even worse than the theoretical worse case, as it is possible to see in Image \ref{fig:roofline} . To be exact the best result obtained is only $37\%$ of the theoretical worst case scenario.
 
 \begin{figure}[hbt!]
 	\centering
@@ -357,11 +357,6 @@ In conclusion COO present various problematic for parallelization, requiring ato
 	\label{fig:roofline}
 \end{figure}
 
-\bibliographystyle{IEEEtran}
-\bibliography{references}
-
-
-\bibliographystyle{IEEEtran}
-\bibliography{references}
+As such we can say that COO is not suitable for GPU parallelization especially for a naive implementation, where CSR is best.
 \end{document}
 

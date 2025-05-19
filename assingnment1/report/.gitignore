@@ -1,6 +1,3 @@
-# temporarely until stabilization
-*.png
-
 # output
 *.aux
 *.bbl
