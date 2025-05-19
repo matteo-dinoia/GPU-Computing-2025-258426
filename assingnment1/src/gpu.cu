@@ -1,5 +1,7 @@
 #include <iostream>
 
+#define MIN(a, b) ((a) <= (b) ? (a) : (b))
+
 // Kernel function to add the elements of two arrays
 // ASSUME it is zeroed the res vector
 __global__ void spmv_a(const int *x, const int *y, const float *val, const float *vec, float *res, int NON_ZERO) {
@@ -8,14 +10,11 @@ __global__ void spmv_a(const int *x, const int *y, const float *val, const float
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
     const int start = start_i * per_thread;
-    const int end = start + per_thread;
+    const int end = MIN(start + per_thread, NON_ZERO);
     const int incr = 1;
 
     for (int el = start; el < end; el += incr) {
-        if (el < NON_ZERO) {
-            atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
-            //printf("%d %d %f %f %f\n", y[el], x[el], val[el], res[y[el]], vec[x[el]]);
-        }
+        atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
     }
 }
 
@@ -27,14 +26,11 @@ __global__ void spmv_b(const int *x, const int *y, const float *val, const float
     const int start_i = blockIdx.x * blockDim.x + threadIdx.x;
 
     const int start = start_i;
-    const int end = start_i + per_thread * n_threads;
+    const int end = MIN(start_i + per_thread * n_threads, NON_ZERO);
     const int incr = n_threads;
 
     for (int el = start; el < end; el += incr) {
-        if (el < NON_ZERO) {
-            atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
-            //printf("%d %d %f %f %f\n", y[el], x[el], val[el], res[y[el]], vec[x[el]]);
-        }
+        atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
     }
 }
 
