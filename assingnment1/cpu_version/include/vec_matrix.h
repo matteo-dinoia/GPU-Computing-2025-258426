@@ -1,5 +1,7 @@
 #ifndef VEC_UTILS_H
 #define VEC_UTILS_H
+#include <stdio.h>
+#include <stdlib.h>
 
 #define PRINT_VEC(format_str, vec, N)   \
     for (int i = 0; i < (N); i++) {     \
@@ -14,7 +16,7 @@ void gen_random_vec_double(float *vec, const int N) {
     }
 }
 
-void print_matrix_double(const float *res, const int M, const int N) {
+void print_matrix_float(const float *res, const int M, const int N) {
     if (res == NULL) {
         printf("NULL pointer in print\n");
         return;
