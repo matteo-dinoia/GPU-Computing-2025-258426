@@ -5,7 +5,7 @@
 # datasets/circuit5M_dc.mtx datasets/mawi_201512020330.mtx datasets/mycielskian3.mtx
 
 DEST="assignment1/"
-TO_COPY="int-runner.sh Makefile gpu-run.sbatch src"
+TO_COPY="int-gpu-runner.sh Makefile gpu-run.sbatch src"
 
 # EXECUTE ON CLUSTER
 echo "COPYING FILES"
