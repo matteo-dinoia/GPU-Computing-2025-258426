@@ -11,11 +11,13 @@ sbatch gpu-run.sbatch $1 >/dev/null || exit;
 echo 'QUEUED JOB (may take some time to be started)'
 
 # WAIT JOB START
-until [ -e ./result.err ]; do sleep 1; done;
-echo 'JOB STARTED (may take some time to finish)';
+until [ -e ./result.err ]; do printf .; sleep 1; done;
+echo
 
 # WAIT JOB FINISH
-until [ -e ./finished.out ]; do sleep 1; done;
+echo 'JOB STARTED (may take some time to finish)';
+until [ -e ./finished.out ]; do printf .; sleep 1; done;
+echo
 
 # PRINT RESULTS
 cat ./result.err;

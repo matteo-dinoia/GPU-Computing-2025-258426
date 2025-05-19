@@ -9,7 +9,6 @@
 #include "include/tester.h"
 
 #define MAX_THREAD_PER_BLOCK 1024
-#define MAX_WARP 32
 #define MAX_BLOCK 256
 
 #define CYCLES 10
@@ -23,7 +22,8 @@ int diff_size(float *, float *, int);
 void execution(const struct Coo matrix, float *vec, float *res, float *res_control) {
     int n_blocks = std::min(MAX_BLOCK, (int)ceil(matrix.NON_ZERO / (float)MAX_THREAD_PER_BLOCK));
     int n_thread_per_block = std::min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
-    cout << "Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>" << endl;
+    cout << "# Starting with <<<" << n_blocks << ", " << n_thread_per_block << ">>>\n"
+         << endl;
 
     srand(time(0));
     TIMER_DEF(0);
@@ -38,13 +38,10 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
     double cpu_time = 0;
     double sum_cpu_times = 0;
 
-    // Execute multiple time
-    int cycle;
-    for (cycle = -WARMUP_CYCLES; cycle < CYCLES; cycle++) {
-        // initialize vec arrays with random values
-        for (int i = 0; i < matrix.COLS; i++) {
-            vec[i] = rand() % 50;
-        }
+    // initialize vec arrays with random values
+    for (int i = 0; i < matrix.COLS; i++) {
+        vec[i] = rand() % 50;
+    }
 
         // Run cpu version
         bzero(res_control, matrix.ROWS * sizeof(float));
@@ -86,10 +83,6 @@ void execution(const struct Coo matrix, float *vec, float *res, float *res_contr
     double cpu_flops = matrix.NON_ZERO * 2 / (cpu_avg / 1.e3);
     cout << "|---------->[  cpu  ]=> " << cpu_avg << " ms (" << cpu_flops / 1e9 << " Gflops) \n\n"
          << endl;
-
-    /*if (n_error > 0) {
-        cout << "There were " << n_error << " errors in the array (cycle " << cycle - 1 << ")" << endl;
-    }*/
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
