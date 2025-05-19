@@ -350,7 +350,9 @@ Finally we can node how, ignoring Model7, the "Kernel warp size" has the most re
 
 
 \section{Conclusions}
-In conclusion COO present various problematic aspect when talking about parallelization, requiring atomic operation, in contrast to the CSR implementation. Because of this, the performance obtained are even worse than the theoretical worse case as it was theorized. This can be seen in Image \ref{fig:roofline} .
+In conclusion COO present various problematic aspect when talking about parallelization, requiring atomic operation, in contrast to the CSR implementation. Because of this, the performance obtained are even worse than the theoretical worse case as it was theorized.
+
+
 
 \begin{figure}[hbt!]
 	\centering
@@ -359,7 +361,7 @@ In conclusion COO present various problematic aspect when talking about parallel
 	\label{fig:roofline}
 \end{figure}
 
-To be exact the best result obtained is only $37\%$ of the theoretical worst case scenario.
+This can be seen in Image \ref{fig:roofline} . To be exact the best result obtained is only $37\%$ of the theoretical worst case scenario.
 \\
 
 In conclusion, we can assert that COO is not suitable representation for sparse matrix when talking about efficient kernel implementation, especially in the case of a naive implementation. In such cases, it should be instead evaluated the use of CSR.
