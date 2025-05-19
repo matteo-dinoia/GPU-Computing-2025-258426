@@ -38,12 +38,17 @@ bool read_mtx_data(std::ifstream &file, const struct Coo *matrix) {
 
     int row, col;
     float value;
+    int read;
 
     char buf[BUF_LEN];
     for (int line = 0; line < matrix->NON_ZERO; line++) {
         file.getline(buf, BUF_LEN);
-        if (sscanf(buf, "%d %d %f", &col, &row, &value) != 3) {
+        read = sscanf(buf, "%d %d %f", &col, &row, &value);
+
+        if (read < 2) {
             return ERR;
+        } else if (read == 2) {
+            value = 1;
         }
 
         // Store the entry (adjust 1-based index to 0-based)
