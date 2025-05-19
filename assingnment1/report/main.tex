@@ -37,7 +37,7 @@
 %\torem{[max 200 words]}\\
 The sparse matrix-dense vector multiplication (SpMV) is a common linear algebra operation involving a sparse matrix and a dense vector. SpMV is widely used in many real-world applications such as scientific computing and graph analytics.
 
-This deliverable covers one of the possible representation used for sparse matrix, COO. It also only discuss GPU implementation without shared memory usage, using only primitive synchronization and CPU implementation. This paper discusses what are the limiting factors of COO.
+This deliverable covers one of the possible representation used for sparse matrix in SpMV, COO. It also only discuss GPU implementation without shared memory usage, using only primitive synchronization and the CPU implementation. Finally it discusses what are the limiting factors of COO.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -54,11 +54,11 @@ Due to being an intrinsically memory-bound algorithm, its performance are limite
 
 \section{Problem Statement}
 %\torem{Define the problem statement, including a description of the storage format used and a brief discussion of the parallelization approach (e.g., using CUDA).}
-Sparse matrix vector multiplication (SpMV) is define as the matrix multiplication between a sparse matrix $A$ of size $n\times m$ and a dense vector $x$ of size $m\times 1$ which result in a vector $y$ of size $n\times 1$ computed as follows:
+Sparse matrix vector multiplication (SpMV) is defined as the matrix multiplication between a sparse matrix $A$ of size $n\times m$ and a dense vector $x$ of size $m\times 1$ which result in a vector $y$ of size $n\times 1$ computed as follows:
 \[y=A \cdot x\]
 \[y_i = \sum_{k=1}^{n}A_{ik} x_{k}\]
 
-An efficient implementation of SpMV present various challenges, most of which are related to the storage format and memory access. As said before SpMV is memory-bound and as such an efficient memory access is required to reduce the memory bottleneck. In fact the arithmetic intensity of the worst case of SpMV is:
+An efficient implementation of SpMV present various challenges, most of which are related to the storage format and memory access. As said before SpMV is memory-bound and as such an efficient memory access is required to reduce the memory bottleneck. In fact the arithmetic intensity of the worst case of SpMV is very low:
 \[Intensity = \frac{2\ flop}{6 \cdot 4\ bytes} = 0.083\frac {flop}{bytes}\]
 
 In order to have a efficient access to the memory a storage format that facilitate such access is required.
@@ -74,11 +74,11 @@ Multiple format exists such as Compressed Sparse Row (CSR), Coordinate (COO), EL
 	\item \textbf{values}: representing for every $i$ the value of $i$-th element;
 \end{itemize}
 
-Instead the CSR format, which is explained here to understand the limiting factors of COO, is still composed of the same three array but the rows array is compressed as the name implies. The compressed rows array contains pointers that mark the beginning of rows within the column array. This compression can be achieved by the fact that the points in the three array are assumed sorted by row index.
+Instead the CSR format, which is explained here to understand the limiting factors of COO, is still composed of the same three array but the rows array is compressed as the name implies. The compressed rows array contains pointers that mark the beginning of rows within the column array. This compression can be achieved by the fact that the points in the three array are assumed to be sorted by row index.
 
 \subsection{Parallelization}
 %Describe the CUDA implementation approach \dots
-Being SpMV a conceptually easy operation, the simplest way to parallelize it is to exploit independence between operation on some blocks of data, to obtain data parallelism. In the case of SpMV, the way to do it is to execute the computation of each matrix's row concurrently. This is possible because to compute the product of a row and the vector it is only needed read access to both and write access to a single element of the result vector which is independent to the other elements in the same vector, so there is no write conflict and as such no synchronization primitive are required to preserve correctness of the algorithm. This idea can be implemented in CSR as we can get the start of each row.
+Being SpMV a conceptually easy operation, the simplest way to parallelize it is to exploit independence between operation on some blocks of data, to obtain data parallelism. In the case of SpMV, the way to do it is to execute the computation of each matrix's row concurrently. This is possible because to compute the product of a row and the vector it is only needed read access to the previous two and write access to a single element of the result vector which is independent to the other elements in the same vector, so there is no write conflict and as such no synchronization primitive are required to preserve correctness of the algorithm. This idea can be implemented in CSR as we can get the start of each row.
 
 In COO instead this is not easily possible. To achieve this result we either have to convert the matrix to CSR  or we can find at runtime the start of each row and only after execute thread/s for each row. Both require something similar to a conversion to CSR defeating the purpose of storing the matrix as COO instead of CSR, and the latter massively increase the time as that is not an easily parallelized operation and require to scan the entirety of the Ys array before computing the SpMV.
 
@@ -153,7 +153,7 @@ After this it is possible to expand the COO implementation by simply parallelize
 
 But this simplicity comes with a cost: performance. In fact, atomic operation are never cheap and as such it is expected that this algorithm will not even be close to the theoretical worst-case, instead it will be much worse.
 
-There are some possible change that can be done to reduce cache missed and improved performance, as detailed in the following chapters.
+But, there are some possible change that can be done to reduce cache missed and improved performance, as detailed in the following chapters.
 
 \section{System Description and Experimental Set-up}
 %Use this section to describe system, dataset and experimental set-up.
@@ -185,7 +185,7 @@ The previous algorithms were tested with GCC 12.3, CUDA version 12.5 on the $Bal
 \subsection{Dataset description}
 
 %Describe the used dataset and the reasons of your choice. List the used input matrices and all the information that you think are valuable to show (number of non-zero elements, sparsity ratio, \dots); Table \ref{tab:dataset} gives you a possible example.
-To test the various implementation we use four datasets \ref{tab:dataset} . The largest one \textit{Mawi}, is also the one with some row and cols that are very dense. Of medium size there is Delaunay with radial elements and Circuit5M which is a mixture of the previous two. Finally the smallest is Model7 with somewhat irregular patterns.
+To test the implementations we use four datasets \ref{tab:dataset} . The largest one \textit{Mawi}, is also the one with some row and cols that are very dense. Of medium size there are Delaunay with radial elements and Circuit5M which is a mixture of the previous two. Finally the smallest is Model7 with somewhat irregular patterns.
 \FloatBarrier
 \begin{figure}
 	\centering
@@ -238,9 +238,9 @@ To test the various implementation we use four datasets \ref{tab:dataset} . The 
 %	\item Runtime CPU vs GPU comparison looping over different matrix dimensions
 %\end{itemize}
 \subsection{CPU implementations}
-Using Model7 as datasets to test cache misses, the results are the one in the Table \ref{tab:cache-results} . These values are very rough as cachegrind doesn't allow testing of a single portion of code. As such, both test were conduct in the same exact codebase with the single difference of calling COO or CSR methods (so even the conversion from COO to CSR was done in both).
+Using Model7 as datasets to test cache misses, the results are the one in the Table \ref{tab:cache-results} . These values are very rough as cachegrind doesn't allow testing of a single portion of code. As such, both test were conducted in the same exact codebase with the single difference of calling COO or CSR methods (so even the conversion from COO to CSR was done in both).
 
-This minimize the difference between the test but doesn't solve the issue of the initialization causing some miss. To reduce the impact of this the SpMV was compute 500 times, to reduce the impact of the initial misses.
+This minimize the difference between the test but doesn't solve the issue of the initialization causing some misses. To reduce the impact of the initial misses, the SpMV was compute 500 times.
 
 As expected, CSR being compressed cause lower reference and also slightly less cache misses.
 \begin{table}[hbt!]
@@ -261,7 +261,7 @@ As expected, CSR being compressed cause lower reference and also slightly less c
 	\label{tab:cache-results}
 \end{table}
 
-It was then measured the average time (over 10 cycles with 2 warmup). Time wise instead we see that CSR indeed wins in Model7 and Circuit5c but massively lose in Delaunay and Mawi datasets. In the Table \ref{tab:time-cpu-results} are also reported the bandwidth calculated from the average times, instead of the flops, that is because it is memory bound, so we care more about bandwidth.
+It was then measured the average time (over 20 cycles with 5 warmup). Time wise instead we see that CSR indeed wins in Model7 and Circuit5c but massively lose in Delaunay and Mawi datasets. In the Table \ref{tab:time-cpu-results} are also reported the bandwidth calculated from the average times, instead of the flops, that is because it is memory bound, so we care more about bandwidth.
 
 \begin{table}[hbt!]
 	\centering
@@ -284,10 +284,10 @@ It was then measured the average time (over 10 cycles with 2 warmup). Time wise 
 \end{table}
 
 \FloatBarrier
-Unfortunately due to time constraints and technical problem with Valgrind over the cluster, it was not possible to further analyze if these CSR loss are cause by a high cache misses. But it may be the case that with larger sample COO may be faster because of higher hit rate.
+Unfortunately due to time constraints and technical problem with Valgrind in the cluster, it was not possible to further analyze if these CSR losses are caused by higher cache misses. It may behave been that with larger samples COO will be faster because of higher hit rate.
 
 \subsection{GPU implementations}
-The simple idea in Algorithm \ref{alg:COO_GPU} can be implemented in various ways, the tested in this paper are:
+The simple idea of a GPU Algorithm \ref{alg:COO_GPU} can be implemented in various ways. The versions tested in this paper are:
 \begin{itemize}
 	\item \textbf{"Kernel 1 size"}: where each thread acquires locally adjacent elements;
 	\item \textbf{"Kernel threads size"}: where the distance between an element and the next that the thread acquire is the \# threads;
@@ -295,7 +295,7 @@ The simple idea in Algorithm \ref{alg:COO_GPU} can be implemented in various way
 	\item \textbf{"Kernel block size"}: where the distance between an element and the next that the thread acquire is the size of a block;
 \end{itemize}
 
-It was, then, tested the performance of them, with respect to the number of thread per block and the number of blocks. As expected the first kernel performance are worst one and warp size and block size perform around the same as first contenders. This is because of the fact that warp share cache and as such threads in same thread should access close position. The reason for "Kernel threads size" to be about half the performance of the warp one it is possibly connected to the fact that each thread need to access location that are pretty far apart increasing cache misses.
+It was, then, tested the performance of them, with respect to the number of thread per block and the number of blocks. As expected the first kernel is the worst one and warp size and block size are in the first place, while perform around the same. This is because of the fact that warp share cache and as such threads in same thread should access close position. The reason for "Kernel threads size" to be about half the performance of the warp one it is possibly connected to the fact that each thread need to access location that are pretty far apart, increasing cache misses.
 
 \begin{figure}[hbt!]
 	\centering
@@ -311,7 +311,7 @@ It was, then, tested the performance of them, with respect to the number of thre
 	\label{fig:gbforsizegrid}
 \end{figure}
 
-Also as expected the two graph look very alike. That is because the A30 only has 4 SM with each a warp of size 32 so increasing the value above this values is the same if similar if done via block size or number of blocks.
+Also as expected the two graph look very alike. That is because the A30 has only 4 SM with each a warp of size 32, so increasing to values above this value, has similar result if it is done via block size or number of blocks.
 
 
 \begin{figure}
@@ -321,9 +321,7 @@ Also as expected the two graph look very alike. That is because the A30 only has
 	\label{fig:perf-gpu}
 \end{figure}
 \FloatBarrier
-As expected the worst performance are on the smallest dataset. That is because GPU are optimized for throughput and as such they have higher latency which is the cause of that performance. Also because it is so small the comparison between the various kernel become meaningless and more importance is put on the various overhead (eg. creating a kernel).
-
-Finally we can node how, ignoring Model7, the "Kernel warp size" has the most reliable performance as expected while sometimes the "Kernel block size" has better performance but not always.
+The kernels were then benchmarked with all the datasets. As it was expected, the worst performance come from the smallest dataset. The cause of this, is that GPU are optimized for throughput and so they have higher latency. So with smaller size datasets the latency become the limiting factor. It can also be noted that on small datasets the comparison between the various kernel become meaningless, as the time is almost all spent on the various overhead (eg. creating a kernel).
 
 
 \begin{table}[hbt!]
@@ -347,8 +345,14 @@ Finally we can node how, ignoring Model7, the "Kernel warp size" has the most re
 \end{table}
 
 \FloatBarrier
+
+Finally we can node how, ignoring Model7, the "Kernel warp size" has the most reliable performance as expected while sometimes the "Kernel block size" has better performance but is not very reliable, having a larger variance.
+
+
 \section{Conclusions}
-In conclusion COO present various problematic for parallelization, requiring atomic operation, differently from the CSR implementation. Because of this the performance obtained are even worse than the theoretical worse case, as it is possible to see in Image \ref{fig:roofline} . To be exact the best result obtained is only $37\%$ of the theoretical worst case scenario.
+In conclusion COO present various problematic aspect when talking about parallelization, requiring atomic operation, in contrast to the CSR implementation. Because of this, the performance obtained are even worse than the theoretical worse case as it was theorized.
+
+
 
 \begin{figure}[hbt!]
 	\centering
@@ -357,6 +361,9 @@ In conclusion COO present various problematic for parallelization, requiring ato
 	\label{fig:roofline}
 \end{figure}
 
-As such we can say that COO is not suitable for GPU parallelization especially for a naive implementation, where CSR is best.
+This can be seen in Image \ref{fig:roofline} . To be exact the best result obtained is only $37\%$ of the theoretical worst case scenario.
+\\
+
+In conclusion, we can assert that COO is not suitable representation for sparse matrix when talking about efficient kernel implementation, especially in the case of a naive implementation. In such cases, it should be instead evaluated the use of CSR.
 \end{document}
 
