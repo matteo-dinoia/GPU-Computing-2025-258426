@@ -4,7 +4,8 @@
 
 using std::cout, std::endl;
 
-#define DOUBLE_RAND_MIN (-1000)
+// TODO fix negative number causing problems
+#define DOUBLE_RAND_MIN 0
 #define DOUBLE_RAND_MAX 1000
 
 void randomize_dense_vec(float* vec, const uint32_t N)
