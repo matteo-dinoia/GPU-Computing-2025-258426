@@ -1,4 +1,8 @@
+# IDE
+.idea/
+
 # Matrix
+*.bmtx
 *.mtx
 *.tar.gz
 
@@ -6,3 +10,6 @@
 build/
 *.err
 *.out
+
+# Reports
+*.ncu-rep
