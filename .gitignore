@@ -1,4 +1,8 @@
+# IDE
+.idea/
+
 # Matrix
+*.bmtx
 *.mtx
 *.tar.gz
 
