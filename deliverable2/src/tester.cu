@@ -7,16 +7,13 @@
 #include "include/tester.h"
 #include "include/utils.h"
 
+using std::cout, std::endl;
+
 #define MAX_THREAD_PER_BLOCK 1024u
 #define MAX_BLOCK 256u
 
 #define CYCLES 1
 #define WARMUP_CYCLES 0
-
-#define eprintf(...) fprintf (stderr, __VA_ARGS__)
-
-using std::cout, std::endl;
-
 
 void execution(const GpuCoo<uint32_t, float>& matrix, const float* vec, float* res, float* res_control)
 {
