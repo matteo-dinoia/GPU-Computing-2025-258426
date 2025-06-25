@@ -4,17 +4,19 @@ DIST_MMIO_INCLUDE=$(DIST_MMIO)/include
 DIST_MMIO_SRCS=$(DIST_MMIO)/src/mmio.cpp $(DIST_MMIO)/src/mmio_utils.cpp
 
 # CPP
-CFLAGS=-g -O0 -Wall -Wextra
+CFLAGS=-Wall -Wextra
 INC_DIR=src/include
 OBJS= build/gpu.o build/tester.o build/time_utils.o build/utils.o
 
 # CUDA
-NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)"
+NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)" -O3
 NVCC_INCLUDE=-I$(INC_DIR) -I$(DIST_MMIO_INCLUDE)
 PROFILE_FLAGS=-lineinfo
 
 # GPU
 all: build/main build/main_profiling
+normal: build/main
+profiling: build/main_profiling
 build/main: src/main.cu $(OBJS) $(INC_DIR)  Makefile | build
 	nvcc $(NVCC_FLAGS) $(NVCC_INCLUDE) $< $(OBJS) -o $@ $(DIST_MMIO_SRCS)
 
@@ -34,5 +36,5 @@ build:
 clean:
 	rm -f build/*
 
-.PHONY: all clean
+.PHONY: all clean normal profiling
 # mt7601u 3-1:1.0: Vendor request req:07 off:0208 failed:-71
