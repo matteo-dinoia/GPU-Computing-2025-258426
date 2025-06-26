@@ -85,7 +85,7 @@ int timed_main(const char* input_file)
 
     // Generation of random vector
     TIMER_START(3);
-    randomize_dense_vec(vec, matrix.ROWS);
+    randomize_dense_vec(vec, matrix.COLS);
     TIMER_STOP(3);
     print_min_max(vec, matrix.COLS);
     cout << "* Randomized Vector" << endl;
