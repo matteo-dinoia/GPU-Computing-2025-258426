@@ -16,6 +16,6 @@
 
 void randomize_dense_vec(float*, u32);
 
-uint32_t diff_size(const float*, const float*, uint32_t);
 void print_min_max(const float*, u32);
 
+void print_diff_info(const float*, const float*, u32, std::string_view);

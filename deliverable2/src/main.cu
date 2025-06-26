@@ -1,11 +1,11 @@
 #include <iostream>
 #include <fstream>
 #include <unistd.h>
-
 #include <sys/time.h>
-#include "tester.h"
+#include "include/tester.h"
 #include "include/time_utils.h"
 #include "include/utils.h"
+#include "include/type_alias.h"
 #include "../distributed_mmio/include/mmio.h"
 
 #define eprintf(...) fprintf (stderr, __VA_ARGS__)
@@ -19,7 +19,6 @@ int main(const int argc, char** argv)
 {
     int ret = 1;
     TIMER_DEF(1);
-    srand(time(nullptr));
 
     TIMER_START(1);
     if (argc >= 2)
@@ -44,7 +43,7 @@ int timed_main(const char* input_file)
     TIMER_DEF(5);
 
     // Data allocation
-    GpuCoo<uint32_t, float> matrix = {0, 0, 0, nullptr, nullptr, nullptr};
+    GpuCoo<u32, float> matrix = {0, 0, 0, nullptr, nullptr, nullptr};
     float* vec = nullptr;
     float* res = nullptr;
     float* res_control = nullptr;
@@ -88,9 +87,12 @@ int timed_main(const char* input_file)
     TIMER_START(3);
     randomize_dense_vec(vec, matrix.ROWS);
     TIMER_STOP(3);
+    print_min_max(vec, matrix.COLS);
     cout << "* Randomized Vector" << endl;
 
     // Execution
+    cout << "* Starting with nz=" << matrix.NON_ZERO << " cols=" << matrix.COLS << " rows=" << matrix.ROWS << "\n" <<
+        endl;
     TIMER_START(4);
     execution(matrix, vec, res, res_control);
     TIMER_STOP(4);
@@ -109,6 +111,7 @@ int timed_main(const char* input_file)
 
     // Print time
     cout << "Time elapsed for reading: " << TIMER_ELAPSED_MS(0) << " ms" << endl;
+    cout << "Time elapsed for allocation: " << TIMER_ELAPSED_MS(1) << " ms" << endl;
     cout << "Time elapsed for allocation: " << TIMER_ELAPSED_MS(1) << " ms" << endl;
     cout << "Time elapsed for copy: " << TIMER_ELAPSED_MS(2) << " ms" << endl;
     cout << "Time elapsed for vector generation: " << TIMER_ELAPSED_MS(3) << " ms" << endl;
