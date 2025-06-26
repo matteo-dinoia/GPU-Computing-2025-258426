@@ -1,8 +1,5 @@
 #pragma once
 
-
-
-
 #define TIMER_DEF(n) struct timeval temp_1_##n = {0, 0}, temp_2_##n = {0, 0}
 #define TIMER_START(n) gettimeofday(&temp_1_##n, (struct timezone *)0)
 #define TIMER_STOP(n) gettimeofday(&temp_2_##n, (struct timezone *)0)
