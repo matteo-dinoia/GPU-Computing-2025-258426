@@ -1,7 +1,7 @@
 # COMPILE
 echo 'COMPILING'
 module load CUDA/12.5 || exit;
-make all || exit;
+make normal || exit;
 
 # RUN
 echo 'QUEUEING JOB'
