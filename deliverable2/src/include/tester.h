@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "type_alias.h"
 
 template <typename IT, typename VT>
 struct GpuCoo

@@ -33,10 +33,11 @@ void execution(const GpuCoo<uint32_t, float>& matrix, const float* vec, float* r
 {
     int cycle;
 
+
     // Kernel used in the testing
-    const std::vector kernels = {
-        baseline, full_strided, full_jump, warp_jump, warp_jump_bkp, block_jump, block_jump_bkp
-    };
+    const std::vector kernels = {baseline,
+                                 // full_strided, full_jump,
+                                 warp_jump, block_jump, prefix_sum, prefix_sum_bkp};
 
     // Time definition
     float gpu_times[kernels.size()];
