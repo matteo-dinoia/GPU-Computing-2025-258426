@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 #include <sys/time.h>
 #include "../distributed_mmio/include/mmio.h"
@@ -14,6 +15,7 @@ int timed_main(const char*);
 int main(const int argc, char** argv)
 {
     int ret = 1;
+    srand(std::chrono::system_clock::now().time_since_epoch().count());
     TIMER_DEF(1);
 
     TIMER_START(1);

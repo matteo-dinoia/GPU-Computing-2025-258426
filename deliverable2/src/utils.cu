@@ -6,13 +6,16 @@
 
 using std::cout, std::endl;
 
+#define RAND_BOUND 10
+#define RAND_PREC 1000
+
 void randomize_dense_vec(float* vec, const u32 N)
 {
-    std::uniform_real_distribution<float> unif(-1000, 1000);
-    std::default_random_engine re; // NOLINT(*-msc51-cpp)
-
     for (u32 i = 0; i < N; i++)
-        vec[i] = unif(re);
+    {
+        const auto tmp = static_cast<float>(rand() % (RAND_BOUND * RAND_PREC * 2)); // NOLINT(*-msc50-cpp)
+        vec[i] = tmp / RAND_PREC - RAND_BOUND;
+    }
 }
 
 void print_diff_info(const float* v, const float* control, const u32 LEN, const std::string_view name)
