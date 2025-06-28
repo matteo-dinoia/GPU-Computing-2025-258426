@@ -1,14 +1,10 @@
 #include <iostream>
-#include <fstream>
-#include <unistd.h>
 #include <sys/time.h>
+#include "../distributed_mmio/include/mmio.h"
 #include "include/tester.h"
 #include "include/time_utils.h"
-#include "include/utils.h"
 #include "include/type_alias.h"
-#include "../distributed_mmio/include/mmio.h"
-
-#define eprintf(...) fprintf (stderr, __VA_ARGS__)
+#include "include/utils.h"
 
 using std::cout, std::endl;
 
@@ -31,7 +27,7 @@ int main(const int argc, char** argv)
     return ret;
 }
 
-
+// Matrix is inverted so that is ordered by row
 int timed_main(const char* input_file)
 {
     cout << "\n* Started" << endl;
@@ -57,15 +53,15 @@ int timed_main(const char* input_file)
         return -1;
     }
     TIMER_STOP(0);
-    cout << "* Read data" << endl;
+    cout << "* Read data (" << coo->nrows << " " << coo->ncols << " " << coo->nnz << ")" << endl;
 
     // Alloc memory
     TIMER_START(1);
     matrix.NON_ZERO = coo->nnz;
-    matrix.COLS = coo->ncols;
-    matrix.ROWS = coo->nrows;
-    cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(int));
-    cudaMallocManaged(&matrix.ys, matrix.NON_ZERO * sizeof(int));
+    matrix.COLS = coo->nrows;
+    matrix.ROWS = coo->ncols;
+    cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(u32));
+    cudaMallocManaged(&matrix.ys, matrix.NON_ZERO * sizeof(u32));
     cudaMallocManaged(&matrix.vals, matrix.NON_ZERO * sizeof(float));
 
     // Alloc memory for other part
@@ -77,8 +73,8 @@ int timed_main(const char* input_file)
 
     // Copy data to GPU
     TIMER_START(2);
-    cudaMemcpy(matrix.xs, coo->col, matrix.NON_ZERO * sizeof(u32), cudaMemcpyHostToDevice);
-    cudaMemcpy(matrix.ys, coo->row, matrix.NON_ZERO * sizeof(u32), cudaMemcpyHostToDevice);
+    cudaMemcpy(matrix.xs, coo->row, matrix.NON_ZERO * sizeof(u32), cudaMemcpyHostToDevice);
+    cudaMemcpy(matrix.ys, coo->col, matrix.NON_ZERO * sizeof(u32), cudaMemcpyHostToDevice);
     cudaMemcpy(matrix.vals, coo->val, matrix.NON_ZERO * sizeof(float), cudaMemcpyHostToDevice);
     TIMER_STOP(2);
     cout << "* Copied COO to GPU memory" << endl;
@@ -91,8 +87,8 @@ int timed_main(const char* input_file)
     cout << "* Randomized Vector" << endl;
 
     // Execution
-    cout << "* Starting with nz=" << matrix.NON_ZERO << " cols=" << matrix.COLS << " rows=" << matrix.ROWS << "\n" <<
-        endl;
+    cout << "* Starting with nz=" << matrix.NON_ZERO << " cols=" << matrix.COLS << " rows=" << matrix.ROWS << "\n"
+         << endl;
     TIMER_START(4);
     execution(matrix, vec, res, res_control);
     TIMER_STOP(4);
