@@ -41,14 +41,14 @@ int timed_main(const char* input_file)
     TIMER_DEF(5);
 
     // Data allocation
-    GpuCoo<u32, float> matrix = {0, 0, 0, nullptr, nullptr, nullptr};
-    float* vec = nullptr;
-    float* res = nullptr;
-    float* res_control = nullptr;
+    GpuCoo<u32, MV> matrix = {0, 0, 0, nullptr, nullptr, nullptr};
+    MV* vec = nullptr;
+    MV* res = nullptr;
+    MV* res_control = nullptr;
 
     // Reading matrix data
     TIMER_START(0);
-    const COO_local<u32, float>* coo = Distr_MMIO_COO_local_read<u32, float>(input_file);
+    const COO_local<u32, MV>* coo = Distr_MMIO_COO_local_read<u32, MV>(input_file);
     if (coo == nullptr)
     {
         printf("Failed to import graph from file [%s]\n", input_file);
@@ -64,12 +64,12 @@ int timed_main(const char* input_file)
     matrix.ROWS = coo->ncols;
     cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(u32));
     cudaMallocManaged(&matrix.ys, matrix.NON_ZERO * sizeof(u32));
-    cudaMallocManaged(&matrix.vals, matrix.NON_ZERO * sizeof(float));
+    cudaMallocManaged(&matrix.vals, matrix.NON_ZERO * sizeof(MV));
 
     // Alloc memory for other part
-    cudaMallocManaged(&vec, matrix.COLS * sizeof(float));
-    cudaMallocManaged(&res, matrix.ROWS * sizeof(float));
-    cudaMallocManaged(&res_control, matrix.ROWS * sizeof(float));
+    cudaMallocManaged(&vec, matrix.COLS * sizeof(MV));
+    cudaMallocManaged(&res, matrix.ROWS * sizeof(MV));
+    cudaMallocManaged(&res_control, matrix.ROWS * sizeof(MV));
     TIMER_STOP(1);
     cout << "* Allocated  memory" << endl;
 
@@ -77,7 +77,7 @@ int timed_main(const char* input_file)
     TIMER_START(2);
     cudaMemcpy(matrix.xs, coo->row, matrix.NON_ZERO * sizeof(u32), cudaMemcpyHostToDevice);
     cudaMemcpy(matrix.ys, coo->col, matrix.NON_ZERO * sizeof(u32), cudaMemcpyHostToDevice);
-    cudaMemcpy(matrix.vals, coo->val, matrix.NON_ZERO * sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(matrix.vals, coo->val, matrix.NON_ZERO * sizeof(MV), cudaMemcpyHostToDevice);
     TIMER_STOP(2);
     cout << "* Copied COO to GPU memory" << endl;
 

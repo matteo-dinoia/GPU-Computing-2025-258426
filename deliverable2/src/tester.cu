@@ -10,12 +10,12 @@ using std::cout, std::endl;
 #define CYCLES 3
 #define WARMUP_CYCLES 1
 
-inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, float>& matrix, const float* vec, float* res)
+inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res)
 {
     float time;
     GPU_TIMER_DEF();
 
-    bzero(res, matrix.ROWS * sizeof(float));
+    bzero(res, matrix.ROWS * sizeof(MV));
     const auto [blocks, threads, shm] = kernel->parameter_getter(matrix);
 
     GPU_TIMER_START();
@@ -29,7 +29,7 @@ inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, float>& mat
     return time;
 }
 
-void execution(const GpuCoo<uint32_t, float>& matrix, const float* vec, float* res, float* res_control)
+void execution(const GpuCoo<uint32_t, MV>& matrix, const MV* vec, MV* res, MV* res_control)
 {
     int cycle;
 

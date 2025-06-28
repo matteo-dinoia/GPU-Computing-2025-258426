@@ -8,16 +8,16 @@ using std::cout, std::endl;
 #define RAND_BOUND 10
 #define RAND_PREC 1000
 
-void randomize_dense_vec(float* vec, const u32 N)
+void randomize_dense_vec(MV* vec, const u32 N)
 {
     for (u32 i = 0; i < N; i++)
     {
-        const auto tmp = static_cast<float>(rand() % (RAND_BOUND * RAND_PREC * 2)); // NOLINT(*-msc50-cpp)
+        const auto tmp = static_cast<MV>(rand() % (RAND_BOUND * RAND_PREC * 2)); // NOLINT(*-msc50-cpp)
         vec[i] = tmp / RAND_PREC - RAND_BOUND;
     }
 }
 
-void print_diff_info(const float* v, const float* control, const u32 LEN, const std::string_view name)
+void print_diff_info(const MV* v, const MV* control, const u32 LEN, const std::string_view name)
 {
     u32 n_error = 0;
     u32 i_first_err = 0;
@@ -40,10 +40,10 @@ void print_diff_info(const float* v, const float* control, const u32 LEN, const 
     }
 }
 
-void print_min_max(const float* v, const u32 len)
+void print_min_max(const MV* v, const u32 len)
 {
-    float max = -100;
-    float min = 100;
+    MV max = -100;
+    MV min = 100;
 
     for (u32 i = 0; i < len; i++)
     {

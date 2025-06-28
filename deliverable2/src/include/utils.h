@@ -13,13 +13,13 @@
     }                                                                                                                  \
     printf("\n");
 
-#define CEIL_DIV(a, b) (static_cast<u32>(std::ceil(static_cast<float>((a)) / static_cast<float>((b)))))
+#define CEIL_DIV(a, b) (static_cast<u32>(std::ceil(static_cast<MV>((a)) / static_cast<MV>((b)))))
 
-void randomize_dense_vec(float*, u32);
+void randomize_dense_vec(MV*, u32);
 
-void print_min_max(const float*, u32);
+void print_min_max(const MV*, u32);
 
-void print_diff_info(const float*, const float*, u32, std::string_view);
+void print_diff_info(const MV*, const MV*, u32, std::string_view);
 
 bool is_sorted_indexes(const u32* v, u32 len);
 

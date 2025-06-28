@@ -11,41 +11,41 @@
 
 #define READ_FOR_THREAD 2
 
-std::tuple<u32, u32, u32> parameters_for_baseline(const GpuCoo<u32, float>& matrix)
+std::tuple<u32, u32, u32> parameters_for_baseline(const GpuCoo<u32, MV>& matrix)
 {
     const u32 n_threads = std::min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
     const u32 n_blocks = CEIL_DIV(matrix.NON_ZERO, n_threads);
     return {n_blocks, n_threads, 0};
 }
 
-std::tuple<u32, u32, u32> parameters_for_basic(const GpuCoo<u32, float>& matrix)
+std::tuple<u32, u32, u32> parameters_for_basic(const GpuCoo<u32, MV>& matrix)
 {
     const u32 n_threads = std::min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
     const u32 n_blocks = std::min(MAX_BLOCK, CEIL_DIV(matrix.NON_ZERO, MAX_THREAD_PER_BLOCK));
     return {n_blocks, n_threads, 0};
 }
 
-std::tuple<u32, u32, u32> parameters_for_prefix_sum(const GpuCoo<u32, float>& matrix)
+std::tuple<u32, u32, u32> parameters_for_prefix_sum(const GpuCoo<u32, MV>& matrix)
 {
     const u32 n_threads = std::min(MAX_THREAD_PER_BLOCK, CEIL_DIV(matrix.NON_ZERO, READ_FOR_THREAD));
     const u32 n_blocks = CEIL_DIV(matrix.NON_ZERO, n_threads * READ_FOR_THREAD);
-    const u32 shm = n_threads * READ_FOR_THREAD * sizeof(float);
+    const u32 shm = n_threads * READ_FOR_THREAD * sizeof(MV);
     std::cout << "Normal " << n_threads << " " << n_blocks << " " << shm << std::endl;
     return {n_blocks, n_threads, shm};
 }
 
-std::tuple<u32, u32, u32> parameters_for_prefix_sum_bkp(const GpuCoo<u32, float>& matrix)
+std::tuple<u32, u32, u32> parameters_for_prefix_sum_bkp(const GpuCoo<u32, MV>& matrix)
 {
     const u32 n_threads = std::min(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
     const u32 n_blocks = CEIL_DIV(matrix.NON_ZERO, n_threads);
-    const u32 shm = n_threads * sizeof(float);
+    const u32 shm = n_threads * sizeof(MV);
     std::cout << "Backup " << n_threads << " " << n_blocks << " " << shm << std::endl;
     return {n_blocks, n_threads, shm};
 }
 
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_baseline(const u32* x, const u32* y, const float* val, const float* vec, float* res, const u32 NON_ZERO)
+__global__ void kernel_baseline(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
 {
     const u32 el = blockIdx.x * blockDim.x + threadIdx.x;
     if (el < NON_ZERO)
@@ -53,7 +53,7 @@ __global__ void kernel_baseline(const u32* x, const u32* y, const float* val, co
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_full_strided(const u32* x, const u32* y, const float* val, const float* vec, float* res,
+__global__ void kernel_full_strided(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
                                     const u32 NON_ZERO)
 {
     const auto per_thread = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x);
@@ -67,7 +67,7 @@ __global__ void kernel_full_strided(const u32* x, const u32* y, const float* val
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_full_jump(const u32* x, const u32* y, const float* val, const float* vec, float* res, const u32 NON_ZERO)
+__global__ void kernel_full_jump(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
 {
     const u32 n_threads = gridDim.x * blockDim.x;
     const u32 tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -77,7 +77,7 @@ __global__ void kernel_full_jump(const u32* x, const u32* y, const float* val, c
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_warp_jump(const u32* x, const u32* y, const float* val, const float* vec, float* res, const u32 NON_ZERO)
+__global__ void kernel_warp_jump(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
 {
     const u32 per_thread = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x);
     const u32 tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -94,7 +94,7 @@ __global__ void kernel_warp_jump(const u32* x, const u32* y, const float* val, c
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_block_jump(const u32* x, const u32* y, const float* val, const float* vec, float* res, const u32 NON_ZERO)
+__global__ void kernel_block_jump(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
 {
     const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x);
     const u32 start = blockIdx.x * cell_per_block + threadIdx.x;
@@ -105,7 +105,7 @@ __global__ void kernel_block_jump(const u32* x, const u32* y, const float* val, 
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_block_jump_unsafe(const u32* x, const u32* y, const float* val, const float* vec, float* res,
+__global__ void kernel_block_jump_unsafe(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
                                          const u32 NON_ZERO)
 {
     const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x);
@@ -121,9 +121,9 @@ __global__ void kernel_block_jump_unsafe(const u32* x, const u32* y, const float
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum(const u32* x, const u32* y, const float* val, const float* vec, float* res, const u32 NON_ZERO)
+__global__ void kernel_prefix_sum(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
 {
-    extern __shared__ float prefix[]; // NOLINT(*-redundant-declaration)
+    extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
     const u32 read_per_block = blockDim.x * READ_FOR_THREAD;
     const u32 base_block = blockIdx.x * read_per_block;
 
@@ -172,10 +172,10 @@ __global__ void kernel_prefix_sum(const u32* x, const u32* y, const float* val, 
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_bkp(const u32* x, const u32* y, const float* val, const float* vec, float* res,
+__global__ void kernel_prefix_sum_bkp(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
                                       const u32 NON_ZERO)
 {
-    extern __shared__ float prefix[]; // NOLINT(*-redundant-declaration)
+    extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
     const u32 base_block = blockIdx.x * blockDim.x;
     const u32 tid = base_block + threadIdx.x;
 
