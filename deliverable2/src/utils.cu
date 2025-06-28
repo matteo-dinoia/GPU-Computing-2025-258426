@@ -1,4 +1,3 @@
-#include <cmath>
 #include <iostream>
 #include <random>
 #include "include/type_alias.h"

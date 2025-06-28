@@ -1,6 +1,7 @@
 #pragma once
-#include "type_alias.h"
+#include <tuple>
 #include "tester.h"
+#include "type_alias.h"
 
 typedef void (*KernelFunc)(const u32*, const u32*, const float*, const float*, float*, u32);
 
@@ -16,6 +17,9 @@ void kernel_block_jump_bkp(const u32*, const u32*, const float*, const float*, f
 typedef std::pair<u32, u32> (*KernelParameterGetter)(const GpuCoo<u32, float>&);
 std::pair<u32, u32> parameters_for_baseline(const GpuCoo<u32, float>&);
 std::pair<u32, u32> parameters_for_basic(const GpuCoo<u32, float>&);
+typedef std::tuple<u32, u32, u32> (*KernelParameterGetter)(const GpuCoo<u32, float>&);
+std::tuple<u32, u32, u32> parameters_for_baseline(const GpuCoo<u32, float>&);
+std::tuple<u32, u32, u32> parameters_for_basic(const GpuCoo<u32, float>&);
 
 struct SmpvKernel
 {

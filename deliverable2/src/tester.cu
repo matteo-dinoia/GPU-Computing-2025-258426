@@ -1,9 +1,7 @@
 #include <iostream>
+#include <vector>
 #include "include/gpu.h"
 #include "include/tester.h"
-
-#include <vector>
-
 #include "include/time_utils.h"
 #include "include/utils.h"
 
@@ -16,15 +14,18 @@ inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, float>& mat
 {
     float time;
     GPU_TIMER_DEF();
+
     bzero(res, matrix.ROWS * sizeof(float));
-    const auto [n_blocks, n_threads] = kernel->parameter_getter(matrix);
+    const auto [blocks, threads, shm] = kernel->parameter_getter(matrix);
 
     GPU_TIMER_START();
-    kernel->execute<<<n_blocks, n_threads>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
+    if (shm == 0)
+        kernel->execute<<<blocks, threads>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
+    else
+        kernel->execute<<<blocks, threads, shm>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
     GPU_TIMER_STOP(&time);
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    GPU_TIMER_DESTROY();
     return time;
 }
 
@@ -46,6 +47,7 @@ void execution(const GpuCoo<uint32_t, float>& matrix, const float* vec, float* r
     {
         // Kernels
         gpu_times[0] = test_kernel(&kernels[0], matrix, vec, res_control);
+        // print_min_max(res_control, matrix.ROWS);
         for (u32 i = 1; i < kernels.size(); i++)
         {
             gpu_times[i] = test_kernel(&kernels[i], matrix, vec, res);
@@ -74,8 +76,7 @@ void execution(const GpuCoo<uint32_t, float>& matrix, const float* vec, float* r
         const double gflops = 2 * (matrix.NON_ZERO / avg / 1e6);
         const double gbs = 6 * 4 * (matrix.NON_ZERO / avg / 1e6);
         cout << "|---------->[" << kernels[i].name << "]=> " << avg << "ms (" << gflops << " Gflops " << gbs << " Gbs)"
-            <<
-            endl;
+             << endl;
     }
     cout << endl;
 }
