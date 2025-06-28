@@ -14,7 +14,7 @@ INCLUDES=-I$(INC_DIR) -I$(DIST_MMIO_INCLUDE)
 PROFILE_FLAGS=-lineinfo
 
 # GPU
-all: build/main build/main_profiling
+all: build/main build/main_profiling build/mtx_to_bmtx
 normal: build/main
 profiling: build/main_profiling
 build/main: src/main.cu $(OBJS) $(INC_DIR)  Makefile | build
