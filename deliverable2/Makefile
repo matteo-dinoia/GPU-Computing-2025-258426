@@ -9,7 +9,7 @@ INC_DIR=src/include
 OBJS=$(DIST_MMIO_OBJ) build/gpu.o build/tester.o build/time_utils.o build/utils.o
 
 # CUDA
-NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)" -O3
+NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)" -O3 --std c++20
 INCLUDES=-I$(INC_DIR) -I$(DIST_MMIO_INCLUDE)
 PROFILE_FLAGS=-lineinfo
 
