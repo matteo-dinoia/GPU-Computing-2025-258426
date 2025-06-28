@@ -1,8 +1,8 @@
 #include <cmath>
 #include <iostream>
-#include "include/utils.h"
-#include "include/type_alias.h"
 #include <random>
+#include "include/type_alias.h"
+#include "include/utils.h"
 
 using std::cout, std::endl;
 
@@ -50,4 +50,24 @@ void print_min_max(const float* v, const u32 len)
     }
 
     cout << "Vector is in range [" << min << ", " << max << "]" << endl;
+}
+
+bool is_sorted_indexes(const u32* v, const u32 len)
+{
+    for (u32 i = 1; i < len; i++)
+    {
+        if (v[i - 1] > v[i])
+            return false;
+    }
+    return true;
+}
+
+template <typename TypeName>
+void print_arr(TypeName* arr, const u32 len)
+{
+    for (u32 i = 0; i < len; i++)
+    {
+        std::cout << arr[i] << " ";
+    }
+    std::cout << std::endl;
 }
