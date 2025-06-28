@@ -25,7 +25,7 @@ std::pair<u32, u32> parameters_for_basic(const GpuCoo<u32, float>& matrix)
 }
 
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_baseline(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                 const u32 NON_ZERO)
 {
@@ -34,7 +34,7 @@ __global__ void kernel_baseline(const u32* x, const u32* y, const float* val, co
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_full_strided(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                     const u32 NON_ZERO)
 {
@@ -49,7 +49,7 @@ __global__ void kernel_full_strided(const u32* x, const u32* y, const float* val
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_full_jump(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                  const u32 NON_ZERO)
 {
@@ -64,7 +64,7 @@ __global__ void kernel_full_jump(const u32* x, const u32* y, const float* val, c
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
-// // ASSUME it is zeroed the res vector
+// // ASSUME the result vector is zeroed before calling this function
 // __global__ void kernel_warp_jump(const u32* x, const u32* y, const float* val, const float* vec, float* res,
 //                                  const u32 NON_ZERO)
 // {
@@ -80,7 +80,7 @@ __global__ void kernel_full_jump(const u32* x, const u32* y, const float* val, c
 //         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 // }
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_warp_jump(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                  const u32 NON_ZERO)
 {
@@ -101,7 +101,7 @@ __global__ void kernel_warp_jump(const u32* x, const u32* y, const float* val, c
     }
 }
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_warp_jump_bkp(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                      const u32 NON_ZERO)
 {
@@ -120,7 +120,7 @@ __global__ void kernel_warp_jump_bkp(const u32* x, const u32* y, const float* va
     }
 }
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_block_jump(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                   const u32 NON_ZERO)
 {
@@ -132,7 +132,7 @@ __global__ void kernel_block_jump(const u32* x, const u32* y, const float* val, 
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_block_jump_unsafe(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                          const u32 NON_ZERO)
 {
@@ -144,7 +144,7 @@ __global__ void kernel_block_jump_unsafe(const u32* x, const u32* y, const float
         res[y[el]] += val[el] * vec[x[el]];
 }
 
-// ASSUME it is zeroed the res vector
+// ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_block_jump_bkp(const u32* x, const u32* y, const float* val, const float* vec, float* res,
                                       const u32 NON_ZERO)
 {
