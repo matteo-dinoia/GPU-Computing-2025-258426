@@ -1,8 +1,7 @@
-#include <cstdint>
 #include <iostream>
+#include "include/gpu.h"
 #include "include/tester.h"
 #include "include/utils.h"
-#include "include/type_alias.h"
 
 #define MAX_THREAD_PER_BLOCK 1024u
 #define MAX_BLOCK 256u
