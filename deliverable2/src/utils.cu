@@ -37,6 +37,12 @@ void print_diff_info(const MV* v, const MV* control, const u32 LEN, const std::s
         cout << "ERROR/s in " << name << " there are " << n_error << " over " << LEN << " [ first at index "
              << i_first_err << " where found " << v[i_first_err] << " insted of expected " << control[i_first_err]
              << "]" << endl;
+
+        if (LEN < 20)
+        {
+            PRINT_VEC(v, LEN);
+            PRINT_VEC(control, LEN);
+        }
     }
 }
 
@@ -64,12 +70,10 @@ bool is_sorted_indexes(const u32* v, const u32 len)
     return true;
 }
 
-template <typename TypeName>
-void print_arr(TypeName* arr, const u32 len)
+u32 lowest_greater_2_power(const u32 n)
 {
-    for (u32 i = 0; i < len; i++)
-    {
-        std::cout << arr[i] << " ";
-    }
-    std::cout << std::endl;
+    u32 res = 1;
+    while (res < n)
+        res <<= 1;
+    return res;
 }

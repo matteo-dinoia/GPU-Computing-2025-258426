@@ -7,7 +7,7 @@
 
 using std::cout, std::endl;
 
-#define CYCLES 3
+#define CYCLES 5
 #define WARMUP_CYCLES 1
 
 inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res)
@@ -35,9 +35,7 @@ void execution(const GpuCoo<uint32_t, MV>& matrix, const MV* vec, MV* res, MV* r
 
 
     // Kernel used in the testing
-    const std::vector kernels = {baseline,
-                                 // full_strided, full_jump,
-                                 warp_jump, block_jump, prefix_sum, prefix_sum_bkp};
+    const std::vector kernels = {baseline, prefix_sum_unlimited, prefix_sum_32_max, block_jump, warp_jump};
 
     // Time definition
     float gpu_times[kernels.size()];
@@ -49,6 +47,7 @@ void execution(const GpuCoo<uint32_t, MV>& matrix, const MV* vec, MV* res, MV* r
         // Kernels
         gpu_times[0] = test_kernel(&kernels[0], matrix, vec, res_control);
         // print_min_max(res_control, matrix.ROWS);
+
         for (u32 i = 1; i < kernels.size(); i++)
         {
             gpu_times[i] = test_kernel(&kernels[i], matrix, vec, res);

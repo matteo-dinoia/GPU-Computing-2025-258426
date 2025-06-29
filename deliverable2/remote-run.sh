@@ -3,7 +3,7 @@
 
 DEST="deliverable2/"
 INTERNAL_RUNNER="gpu-internal-run.sh"
-TO_COPY="${INTERNAL_RUNNER} gpu-run.sbatch Makefile src distributed_mmio MtxMan datasets"
+TO_COPY="${INTERNAL_RUNNER} gpu-run.sbatch Makefile src distributed_mmio MtxMan datasets profile.sh"
 
 # EXECUTE ON CLUSTER
 echo "COPYING FILES"
