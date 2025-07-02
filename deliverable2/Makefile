@@ -6,7 +6,7 @@ DIST_MMIO_OBJ=build/dmmio_mmio.o build/dmmio_utils.o
 # CPP
 CFLAGS=-Wall -Wextra -g
 INC_DIR=src/include
-OBJS=$(DIST_MMIO_OBJ) build/gpu.o build/tester.o build/time_utils.o build/utils.o
+OBJS=$(DIST_MMIO_OBJ) build/gpu.o build/tester.o build/time_utils.o build/utils.o build/parameters.o
 
 # CUDA
 NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)" -O3 --std c++20

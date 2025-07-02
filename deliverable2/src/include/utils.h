@@ -1,6 +1,7 @@
 #pragma once
 #include "type_alias.h"
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define UNUSED(x) (void)(x)
 
