@@ -7,8 +7,8 @@
 
 using std::cout, std::endl;
 
-#define CYCLES 5
-#define WARMUP_CYCLES 1
+#define CYCLES 1
+#define WARMUP_CYCLES 0
 #define PRINT_INTERMEDIATE false
 
 inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res)
@@ -18,7 +18,7 @@ inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix
 
     bzero(res, matrix.ROWS * sizeof(MV));
     const auto [blocks, threads, shm] = kernel->parameter_getter(matrix);
-    // cout << "Running " << kernel->name << " with " << blocks << " " << threads << " " << shm << endl;
+    cout << "Running " << kernel->name << " with " << blocks << " " << threads << " " << shm << endl;
 
     GPU_TIMER_START();
     if (shm == 0)
@@ -53,7 +53,8 @@ void execution(const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res, MV* res_co
                                  prefix_sum_we_32_conflict_free,
                                  prefix_sum_we_unlimited_conflict_free,
                                  prefix_sum_warp,
-                                 prefix_sum_warp_with_block_jump};
+                                 prefix_sum_warp_with_block_jump,
+                                 prefix_sum_warp_merged};
 
     // Time definition
     float gpu_times[kernels.size()];

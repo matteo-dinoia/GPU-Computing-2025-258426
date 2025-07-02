@@ -94,6 +94,15 @@ std::tuple<u32, u32, u32> parameters_prefix_sum_warp_with_block_jump(const GpuCo
     return {n_blocks, n_threads, 0};
 }
 
+std::tuple<u32, u32, u32> parameters_prefix_sum_warp_merged(const GpuCoo<u32, MV>& matrix)
+{
+    // n_thread is 32 * n
+    const u32 n_threads = MIN(CEIL_DIV(matrix.NON_ZERO, 32) * 32, MAX_THREAD_PER_BLOCK);
+    const u32 n_blocks = CEIL_DIV(matrix.NON_ZERO, n_threads);
+    const u32 shm = n_threads / 32 * sizeof(MV);
+    return {n_blocks, n_threads, shm};
+}
+
 
 // ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_baseline(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
@@ -334,6 +343,96 @@ __global__ void kernel_prefix_sum_warp(const u32* x, const u32* y, const MV* val
     {
     }
     else if (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO)
+    {
+        atomicAdd(&res[y[tid]], prefix_i);
+    }
+    else if (y[tid] < y[tid + 1])
+    {
+        atomicAdd(&res[y[tid]], prefix_i);
+        atomicAdd(&res[y[tid + 1]], -prefix_i);
+    }
+}
+
+
+// ASSUME the result vector is zeroed before calling this function
+// Compute multiplication
+// Compute prefix sum (only fist step)
+// Then using edges atomically push to global memory
+__global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
+                                              const u32 NON_ZERO)
+{
+    extern __shared__ MV first_elements[]; // NOLINT(*-redundant-declaration)
+    const u32 base_block = blockIdx.x * blockDim.x;
+    const u32 tid = base_block + threadIdx.x;
+    const u32 tid_warp = threadIdx.x & (warpSize - 1);
+    const u32 id_warp = threadIdx.x >> 5;
+    // HARDCODED WARP SIZE FOR PERFORMANCE
+
+    // Multiplication
+    MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
+    MV prefix_base = 0;
+
+    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
+    // if (threadIdx.x == 0)
+    //     printf("\n");
+
+    // Partial prefix sum
+    for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+    {
+        const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
+        if (tid_warp >= s)
+            prefix_i += to_add;
+    }
+
+    // Put sum in first element of each warp
+    if (tid_warp == 0)
+    {
+        first_elements[id_warp] = prefix_i;
+        // printf("FIRSTS %d %f\n", id_warp, prefix_i);
+        // if (id_warp == 0)
+        //     printf("\n");
+    }
+
+    __syncthreads();
+    if (threadIdx.x < 32)
+    {
+        float first_el_of_warp = first_elements[tid_warp];
+        for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+        {
+            const float to_add = __shfl_up_sync(0xffffffff, first_el_of_warp, s);
+            if (tid_warp >= s)
+                first_el_of_warp += to_add;
+        }
+        first_elements[tid_warp] = first_el_of_warp;
+    }
+    __syncthreads();
+    if (tid_warp == 0)
+    {
+        prefix_base = id_warp > 1 ? first_elements[id_warp - 1] : 0;
+        // printf("FIRSTS_SUM %d %f\n", id_warp, prefix_i);
+        // if (id_warp == 0)
+        //     printf("\n");
+    }
+
+    // Partial prefix sum
+    for (u32 s = 1; s <= warpSize / 2; s <<= 1)
+    {
+        const float to_add = __shfl_up_sync(0xffffffff, prefix_base, s);
+        if (tid_warp >= s)
+            prefix_base += to_add;
+    }
+    prefix_i += prefix_base;
+
+    // printf("SUM %d %f\n", threadIdx.x, prefix_i);
+    // if (threadIdx.x == 0)
+    //     printf("\n");
+
+
+    // Edge detection and memory write
+    if (tid + 1 > NON_ZERO)
+    {
+    }
+    else if (threadIdx.x + 1 == blockDim.x || tid + 1 == NON_ZERO)
     {
         atomicAdd(&res[y[tid]], prefix_i);
     }

@@ -19,6 +19,7 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const u32*, const u
 __global__ void kernel_block_jump_shared(const u32*, const u32*, const MV*, const MV*, MV*, u32);
 __global__ void kernel_prefix_sum_warp(const u32*, const u32*, const MV*, const MV*, MV*, u32);
 __global__ void kernel_prefix_sum_warp_with_block_jump(const u32*, const u32*, const MV*, const MV*, MV*, u32);
+__global__ void kernel_prefix_sum_warp_merged(const u32*, const u32*, const MV*, const MV*, MV*, u32);
 
 
 typedef std::tuple<u32, u32, u32> (*KernelParameterGetter)(const GpuCoo<u32, MV>&);
@@ -31,6 +32,7 @@ std::tuple<u32, u32, u32> parameters_for_prefix_sum_we_unlimited(const GpuCoo<u3
 std::tuple<u32, u32, u32> parameters_for_basic_with_2_shm(const GpuCoo<u32, MV>& matrix);
 std::tuple<u32, u32, u32> parameters_prefix_sum_warp(const GpuCoo<u32, MV>& matrix);
 std::tuple<u32, u32, u32> parameters_prefix_sum_warp_with_block_jump(const GpuCoo<u32, MV>& matrix);
+std::tuple<u32, u32, u32> parameters_prefix_sum_warp_merged(const GpuCoo<u32, MV>& matrix);
 
 
 struct SmpvKernel
@@ -66,3 +68,5 @@ constexpr SmpvKernel prefix_sum_warp = {"prefix_sum_warp", kernel_prefix_sum_war
 constexpr SmpvKernel prefix_sum_warp_with_block_jump = {"prefix_sum_warp_with_block_jump",
                                                         kernel_prefix_sum_warp_with_block_jump,
                                                         parameters_prefix_sum_warp_with_block_jump};
+constexpr SmpvKernel prefix_sum_warp_merged = {"prefix_sum_warp_merged", kernel_prefix_sum_warp_merged,
+                                               parameters_prefix_sum_warp_merged};
