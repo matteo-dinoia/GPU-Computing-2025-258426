@@ -14,4 +14,4 @@ struct GpuCoo
 };
 
 
-void execution(const GpuCoo<uint32_t, MV>&, const MV*, MV*, MV*);
+void execution(const GpuCoo<u32, MV>&, const MV*, MV*, MV*);
