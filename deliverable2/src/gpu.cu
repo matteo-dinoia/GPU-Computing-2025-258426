@@ -22,7 +22,7 @@ std::tuple<u32, u32, u32> parameters_for_baseline(const GpuCoo<u32, MV>& matrix)
 std::tuple<u32, u32, u32> parameters_for_basic(const GpuCoo<u32, MV>& matrix)
 {
     const u32 n_threads = MIN(MAX_THREAD_PER_BLOCK, matrix.NON_ZERO);
-    const u32 n_blocks = MIN(MAX_BLOCK, CEIL_DIV(matrix.NON_ZERO, MAX_THREAD_PER_BLOCK));
+    const u32 n_blocks = MIN(MAX_BLOCK, CEIL_DIV(matrix.NON_ZERO, n_threads));
     return {n_blocks, n_threads, 0};
 }
 
@@ -90,7 +90,7 @@ std::tuple<u32, u32, u32> parameters_prefix_sum_warp(const GpuCoo<u32, MV>& matr
 std::tuple<u32, u32, u32> parameters_prefix_sum_warp_with_block_jump(const GpuCoo<u32, MV>& matrix)
 {
     const u32 n_threads = MIN(CEIL_DIV(matrix.NON_ZERO, 32) * 32, MAX_THREAD_PER_BLOCK);
-    const u32 n_blocks = MIN(MAX_BLOCK, CEIL_DIV(matrix.NON_ZERO, MAX_THREAD_PER_BLOCK));
+    const u32 n_blocks = MIN(MAX_BLOCK, CEIL_DIV(matrix.NON_ZERO, n_threads));
     return {n_blocks, n_threads, 0};
 }
 
