@@ -9,6 +9,7 @@ using std::cout, std::endl;
 
 #define CYCLES 5
 #define WARMUP_CYCLES 1
+#define PRINT_INTERMEDIATE false
 
 inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res)
 {
@@ -83,14 +84,18 @@ void execution(const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res, MV* res_co
         if (cycle >= 0 && !failed)
         {
             cout << "|--> Kernel Time (id " << cycle << "): ";
+
             for (u32 i = 0; i < kernels.size(); i++)
             {
                 if (gpu_times[i] < 0.0 || sum_times[i] < 0.0)
                     sum_times[i] = -1;
                 else
                     sum_times[i] += gpu_times[i];
+#if PRINT_INTERMEDIATE == true
                 cout << "[" << kernels[i].name << "]=> " << gpu_times[i] << "ms ";
+#endif
             }
+
             cout << endl;
         }
     }
