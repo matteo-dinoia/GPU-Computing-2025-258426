@@ -320,7 +320,6 @@ __global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const 
 
     // Multiplication
     MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
-    MV prefix_base = 0;
 
     // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
     // if (threadIdx.x == 0)
@@ -334,8 +333,12 @@ __global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const 
             prefix_i += to_add;
     }
 
+    // printf("PARTIAL_SUM %d %f\n", threadIdx.x, prefix_i);
+    // if (threadIdx.x == 0)
+    //     printf("\n");
+
     // Put sum in first element of each warp
-    if (tid_warp == 0)
+    if (tid_warp + 1 == warpSize)
     {
         first_elements[id_warp] = prefix_i;
         // printf("FIRSTS %d %f\n", id_warp, prefix_i);
@@ -346,37 +349,24 @@ __global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const 
     __syncthreads();
     if (threadIdx.x < 32)
     {
-        float first_el_of_warp = first_elements[tid_warp];
+        MV first_el_of_warp = first_elements[tid_warp];
         for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
         {
-            const float to_add = __shfl_up_sync(0xffffffff, first_el_of_warp, s);
+            const MV to_add = __shfl_up_sync(0xffffffff, first_el_of_warp, s);
             if (tid_warp >= s)
                 first_el_of_warp += to_add;
         }
         first_elements[tid_warp] = first_el_of_warp;
     }
     __syncthreads();
-    if (tid_warp == 0)
-    {
-        prefix_base = id_warp > 1 ? first_elements[id_warp - 1] : 0;
-        // printf("FIRSTS_SUM %d %f\n", id_warp, prefix_i);
-        // if (id_warp == 0)
-        //     printf("\n");
-    }
 
-    // Partial prefix sum
-    for (u32 s = 1; s <= warpSize / 2; s <<= 1)
-    {
-        const float to_add = __shfl_up_sync(0xffffffff, prefix_base, s);
-        if (tid_warp >= s)
-            prefix_base += to_add;
-    }
+    // Complete sum
+    const MV prefix_base = id_warp > 0 ? first_elements[id_warp - 1] : 0;
     prefix_i += prefix_base;
 
-    // printf("SUM %d %f\n", threadIdx.x, prefix_i);
+    // printf("TOTOAL_SUM %d %f\n", threadIdx.x, prefix_i);
     // if (threadIdx.x == 0)
     //     printf("\n");
-
 
     // Edge detection and memory write
     if (tid + 1 > NON_ZERO)
@@ -412,20 +402,23 @@ __global__ void kernel_prefix_sum_warp_with_block_jump(const u32* x, const u32* 
         // Multiplication
         MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
 
-        // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
+        // printf("MUL %d|%d=%d  %f (%d %d %f -> %f)\n", blockIdx.x, threadIdx.x, tid, prefix_i, x[tid], y[tid],
+        // val[tid],
+        //        vec[x[tid]]);
         // if (threadIdx.x == 0)
         //     printf("\n");
 
         // Partial prefix sum
-        for (u32 s = 1; s <= warpSize / 2; s <<= 1)
+        for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
         {
-            const float to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
+            const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
             if (tid_warp >= s)
                 prefix_i += to_add;
-            // printf("SUM %d %f\n", threadIdx.x, prefix_i);
-            // if (threadIdx.x == 0)
-            //     printf("\n");
         }
+
+        // printf("MUL %d|%d=%d %f\n", blockIdx.x, threadIdx.x, tid, prefix_i);
+        // if (threadIdx.x == 0)
+        //     printf("\n");
 
 
         // Edge detection and memory write
