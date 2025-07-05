@@ -10,6 +10,7 @@ using std::cout, std::endl;
 #define CYCLES 1
 #define WARMUP_CYCLES 0
 #define PRINT_INTERMEDIATE false
+#define CHECK_CORRECT false
 
 inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res)
 {
@@ -77,7 +78,7 @@ void execution(const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res, MV* res_co
                 failed = true;
                 failed_idx = i;
             }
-            else if (cycle >= 0)
+            else if (cycle >= 0 && CHECK_CORRECT)
                 print_diff_info(res, res_control, matrix.ROWS, kernels[i].name);
         }
 
