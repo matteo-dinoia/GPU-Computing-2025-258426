@@ -119,7 +119,7 @@ __global__ void kernel_prefix_sum_multiple_read(const u32* x, const u32* y, cons
         printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= read_per_block / 2; s <<= 1)
+    for (u32 s = 1; s <= read_per_block >> 1; s <<= 1)
     {
         for (int i = READ_FOR_THREAD - 1; i >= 0; i--)
         {
@@ -180,7 +180,7 @@ __global__ void kernel_prefix_sum_32_max(const u32* x, const u32* y, const MV* v
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= blockDim.x / 2; s <<= 1)
+    for (u32 s = 1; s <= blockDim.x >> 1; s <<= 1)
     {
         if (threadIdx.x + s < blockDim.x)
             prefix[threadIdx.x + s] += prefix[threadIdx.x];
@@ -227,7 +227,7 @@ __global__ void kernel_prefix_sum_warp(const u32* x, const u32* y, const MV* val
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= warpSize / 2; s <<= 1)
+    for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         if (tid_warp >= s)
@@ -416,7 +416,7 @@ __global__ void kernel_prefix_sum_unlimited(const u32* x, const u32* y, const MV
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= blockDim.x / 2; s <<= 1)
+    for (u32 s = 1; s <= blockDim.x >> 1; s <<= 1)
     {
         // swap double buffer indices
         pout = 1 - pout;
