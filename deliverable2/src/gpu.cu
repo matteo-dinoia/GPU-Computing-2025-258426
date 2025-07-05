@@ -73,7 +73,7 @@ __global__ void kernel_warp_jump(const u32* x, const u32* y, const MV* val, cons
 // ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_block_jump(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
 {
-    const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x);
+    const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
     const u32 start = blockIdx.x * cell_per_block + threadIdx.x;
     const u32 end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
 
@@ -351,7 +351,7 @@ __global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const 
 __global__ void kernel_prefix_sum_warp_with_block_jump(const u32* x, const u32* y, const MV* val, const MV* vec,
                                                        MV* res, const u32 NON_ZERO)
 {
-    const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x);
+    const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
     const u32 start = blockIdx.x * cell_per_block + threadIdx.x;
     const u32 end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
 
