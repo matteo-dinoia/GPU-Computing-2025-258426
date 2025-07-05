@@ -12,7 +12,7 @@ using std::cout, std::endl;
 #define PRINT_INTERMEDIATE false
 #define CHECK_CORRECT false
 
-inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res)
+inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res)
 {
     float time;
     GPU_TIMER_DEF();
@@ -38,7 +38,7 @@ inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix
     return time;
 }
 
-void execution(const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res, MV* res_control)
+void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_control)
 {
     int cycle;
 

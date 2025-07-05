@@ -14,14 +14,14 @@
     }                                                                                                                  \
     cout << endl;
 
-#define CEIL_DIV(a, b) (static_cast<u32>(std::ceil(static_cast<MV>((a)) / static_cast<MV>((b)))))
+#define CEIL_DIV(a, b) (static_cast<MI>(std::ceil(static_cast<MV>((a)) / static_cast<MV>((b)))))
 
-void randomize_dense_vec(MV*, u32);
+void randomize_dense_vec(MV*, MI);
 
-void print_min_max(const MV*, u32);
+void print_min_max(const MV*, MI);
 
-void print_diff_info(const MV*, const MV*, u32, std::string_view);
+void print_diff_info(const MV*, const MV*, MI, std::string_view);
 
-bool is_sorted_indexes(const u32* v, u32 len);
+bool is_sorted_indexes(const MI* v, MI len);
 
-u32 lowest_greater_2_power(u32 n);
+MI lowest_greater_2_power(MI n);

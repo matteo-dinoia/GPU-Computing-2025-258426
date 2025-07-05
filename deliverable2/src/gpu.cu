@@ -5,21 +5,21 @@
 
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_baseline(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
+__global__ void kernel_baseline(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res, const MI NON_ZERO)
 {
-    const u32 start = blockIdx.x * blockDim.x;
-    const u32 el = start + threadIdx.x;
+    const MI start = blockIdx.x * blockDim.x;
+    const MI el = start + threadIdx.x;
     if (el < NON_ZERO)
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
-__global__ void kernel_block_jump_shared(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                         const u32 NON_ZERO)
+__global__ void kernel_block_jump_shared(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                         const MI NON_ZERO)
 {
     // ReSharper disable once CppTooWideScope
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
-    const u32 start = blockIdx.x * blockDim.x;
-    const u32 el = start + threadIdx.x;
+    const MI start = blockIdx.x * blockDim.x;
+    const MI el = start + threadIdx.x;
     if (el < NON_ZERO)
     {
         prefix[2 * threadIdx.x] = val[el];
@@ -30,67 +30,67 @@ __global__ void kernel_block_jump_shared(const u32* x, const u32* y, const MV* v
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_full_strided(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                    const u32 NON_ZERO)
+__global__ void kernel_full_strided(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                    const MI NON_ZERO)
 {
     const auto per_thread = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x);
-    const u32 tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const MI tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    const u32 start = tid * per_thread;
-    const u32 end = MIN(start + per_thread, NON_ZERO);
+    const MI start = tid * per_thread;
+    const MI end = MIN(start + per_thread, NON_ZERO);
 
-    for (u32 el = start; el < end; el++)
+    for (MI el = start; el < end; el++)
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_full_jump(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
+__global__ void kernel_full_jump(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res, const MI NON_ZERO)
 {
-    const u32 n_threads = gridDim.x * blockDim.x;
-    const u32 tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const MI n_threads = gridDim.x * blockDim.x;
+    const MI tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    for (u32 el = tid; el < NON_ZERO; el += n_threads)
+    for (MI el = tid; el < NON_ZERO; el += n_threads)
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_warp_jump(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
+__global__ void kernel_warp_jump(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res, const MI NON_ZERO)
 {
-    const u32 per_thread = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x);
-    const u32 tid = blockIdx.x * blockDim.x + threadIdx.x;
+    const MI per_thread = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x);
+    const MI tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    const u32 wrap_id = tid / warpSize;
-    const u32 start = wrap_id * (per_thread * warpSize) + (tid - wrap_id * warpSize);
-    const u32 incr = warpSize;
+    const MI wrap_id = tid / warpSize;
+    const MI start = wrap_id * (per_thread * warpSize) + (tid - wrap_id * warpSize);
+    const MI incr = warpSize;
 
-    for (u32 i = 0; i < per_thread; i++)
+    for (MI i = 0; i < per_thread; i++)
     {
-        if (const u32 el = start + i * incr; el < NON_ZERO)
+        if (const MI el = start + i * incr; el < NON_ZERO)
             atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
     }
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_block_jump(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res, const u32 NON_ZERO)
+__global__ void kernel_block_jump(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res, const MI NON_ZERO)
 {
-    const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
-    const u32 start = blockIdx.x * cell_per_block + threadIdx.x;
-    const u32 end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
+    const MI cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
+    const MI start = blockIdx.x * cell_per_block + threadIdx.x;
+    const MI end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
 
-    for (u32 el = start; el < end; el += blockDim.x)
+    for (MI el = start; el < end; el += blockDim.x)
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
 
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_block_jump_unsafe(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                         const u32 NON_ZERO)
+__global__ void kernel_block_jump_unsafe(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                         const MI NON_ZERO)
 {
-    const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x);
-    const u32 start = blockIdx.x * cell_per_block + threadIdx.x;
-    const u32 end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
+    const MI cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x);
+    const MI start = blockIdx.x * cell_per_block + threadIdx.x;
+    const MI end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
 
-    for (u32 el = start; el < end; el += blockDim.x)
+    for (MI el = start; el < end; el += blockDim.x)
         res[y[el]] += val[el] * vec[x[el]];
 }
 
@@ -99,17 +99,17 @@ __global__ void kernel_block_jump_unsafe(const u32* x, const u32* y, const MV* v
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_multiple_read(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                                const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_multiple_read(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                                const MI NON_ZERO)
 {
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
-    const u32 read_per_block = blockDim.x * READ_FOR_THREAD;
-    const u32 base_block = blockIdx.x * read_per_block;
+    const MI read_per_block = blockDim.x * READ_FOR_THREAD;
+    const MI base_block = blockIdx.x * read_per_block;
 
     // Multiplication
     for (int i = 0; i < READ_FOR_THREAD; i++)
     {
-        const u32 idx = threadIdx.x + i * blockDim.x;
+        const MI idx = threadIdx.x + i * blockDim.x;
         prefix[idx] = base_block + idx < NON_ZERO ? val[base_block + idx] * vec[x[base_block + idx]] : 0;
         printf("MUL [%d] %d %f ([%d] %d %d %f -> %f)\n", threadIdx.x, idx, prefix[idx], base_block + idx,
                x[base_block + idx], y[base_block + idx], val[base_block + idx], vec[x[base_block + idx]]);
@@ -119,18 +119,18 @@ __global__ void kernel_prefix_sum_multiple_read(const u32* x, const u32* y, cons
         printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= read_per_block >> 1; s <<= 1)
+    for (MI s = 1; s <= read_per_block >> 1; s <<= 1)
     {
         for (int i = READ_FOR_THREAD - 1; i >= 0; i--)
         {
-            const u32 idx = threadIdx.x + i * blockDim.x;
+            const MI idx = threadIdx.x + i * blockDim.x;
             if (idx + s < read_per_block)
                 prefix[idx + s] += prefix[idx];
         }
 
         for (int i = 0; i < READ_FOR_THREAD; i++)
         {
-            const u32 idx = threadIdx.x + i * blockDim.x;
+            const MI idx = threadIdx.x + i * blockDim.x;
             printf("SUM [%d] %d %f ([%d] %d %d %f -> %f)\n", threadIdx.x, idx, prefix[idx], base_block + idx,
                    x[base_block + idx], y[base_block + idx], val[base_block + idx], vec[x[base_block + idx]]);
         }
@@ -143,7 +143,7 @@ __global__ void kernel_prefix_sum_multiple_read(const u32* x, const u32* y, cons
     // Edge detection and memory write
     for (int i = 0; i < READ_FOR_THREAD; i++)
     {
-        const u32 idx = threadIdx.x + i * blockDim.x;
+        const MI idx = threadIdx.x + i * blockDim.x;
         if (base_block + idx + 1 > NON_ZERO)
         {
         }
@@ -164,12 +164,12 @@ __global__ void kernel_prefix_sum_multiple_read(const u32* x, const u32* y, cons
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_32_max(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                         const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_32_max(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                         const MI NON_ZERO)
 {
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
-    const u32 base_block = blockIdx.x * blockDim.x;
-    const u32 tid = base_block + threadIdx.x;
+    const MI base_block = blockIdx.x * blockDim.x;
+    const MI tid = base_block + threadIdx.x;
 
     // Multiplication
     prefix[threadIdx.x] = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
@@ -180,7 +180,7 @@ __global__ void kernel_prefix_sum_32_max(const u32* x, const u32* y, const MV* v
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= blockDim.x >> 1; s <<= 1)
+    for (MI s = 1; s <= blockDim.x >> 1; s <<= 1)
     {
         if (threadIdx.x + s < blockDim.x)
             prefix[threadIdx.x + s] += prefix[threadIdx.x];
@@ -212,12 +212,12 @@ __global__ void kernel_prefix_sum_32_max(const u32* x, const u32* y, const MV* v
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_warp(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                       const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_warp(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                       const MI NON_ZERO)
 {
-    const u32 base_block = blockIdx.x * blockDim.x;
-    const u32 tid = base_block + threadIdx.x;
-    const u32 tid_warp = threadIdx.x & (warpSize - 1);
+    const MI base_block = blockIdx.x * blockDim.x;
+    const MI tid = base_block + threadIdx.x;
+    const MI tid_warp = threadIdx.x & (warpSize - 1);
 
     // Multiplication
     // TODO REMOVE
@@ -230,7 +230,7 @@ __global__ void kernel_prefix_sum_warp(const u32* x, const u32* y, const MV* val
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         if (tid_warp >= s)
@@ -261,12 +261,12 @@ __global__ void kernel_prefix_sum_warp(const u32* x, const u32* y, const MV* val
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_warp_2x(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                          const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_warp_2x(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                          const MI NON_ZERO)
 {
-    const u32 base_block = blockIdx.x * blockDim.x;
-    const u32 tid = base_block + threadIdx.x;
-    const u32 tid_warp = threadIdx.x & (warpSize - 1);
+    const MI base_block = blockIdx.x * blockDim.x;
+    const MI tid = base_block + threadIdx.x;
+    const MI tid_warp = threadIdx.x & (warpSize - 1);
 
     // Multiplication
     MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
@@ -276,7 +276,7 @@ __global__ void kernel_prefix_sum_warp_2x(const u32* x, const u32* y, const MV* 
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         if (tid_warp >= s)
@@ -308,14 +308,14 @@ __global__ void kernel_prefix_sum_warp_2x(const u32* x, const u32* y, const MV* 
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                              const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                              const MI NON_ZERO)
 {
     extern __shared__ MV first_elements[]; // NOLINT(*-redundant-declaration)
-    const u32 base_block = blockIdx.x * blockDim.x;
-    const u32 tid = base_block + threadIdx.x;
-    const u32 tid_warp = threadIdx.x & (warpSize - 1);
-    const u32 id_warp = threadIdx.x >> 5;
+    const MI base_block = blockIdx.x * blockDim.x;
+    const MI tid = base_block + threadIdx.x;
+    const MI tid_warp = threadIdx.x & (warpSize - 1);
+    const MI id_warp = threadIdx.x >> 5;
     // HARDCODED WARP SIZE FOR PERFORMANCE
 
     // Multiplication
@@ -326,7 +326,7 @@ __global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const 
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         if (tid_warp >= s)
@@ -350,7 +350,7 @@ __global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const 
     if (threadIdx.x < 32)
     {
         MV first_el_of_warp = first_elements[tid_warp];
-        for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+        for (MI s = 1; s <= warpSize >> 1; s <<= 1)
         {
             const MV to_add = __shfl_up_sync(0xffffffff, first_el_of_warp, s);
             if (tid_warp >= s)
@@ -388,16 +388,16 @@ __global__ void kernel_prefix_sum_warp_merged(const u32* x, const u32* y, const 
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_warp_with_block_jump(const u32* x, const u32* y, const MV* val, const MV* vec,
-                                                       MV* res, const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_warp_with_block_jump(const MI* x, const MI* y, const MV* val, const MV* vec,
+                                                       MV* res, const MI NON_ZERO)
 {
-    const u32 cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
-    const u32 start = blockIdx.x * cell_per_block + threadIdx.x;
-    const u32 end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
+    const MI cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
+    const MI start = blockIdx.x * cell_per_block + threadIdx.x;
+    const MI end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
 
-    for (u32 tid = start; tid < end; tid += blockDim.x)
+    for (MI tid = start; tid < end; tid += blockDim.x)
     {
-        const u32 tid_warp = threadIdx.x & (warpSize - 1);
+        const MI tid_warp = threadIdx.x & (warpSize - 1);
 
         // Multiplication
         MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
@@ -409,7 +409,7 @@ __global__ void kernel_prefix_sum_warp_with_block_jump(const u32* x, const u32* 
         //     printf("\n");
 
         // Partial prefix sum
-        for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+        for (MI s = 1; s <= warpSize >> 1; s <<= 1)
         {
             const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
             if (tid_warp >= s)
@@ -441,13 +441,13 @@ __global__ void kernel_prefix_sum_warp_with_block_jump(const u32* x, const u32* 
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_unlimited(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                            const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_unlimited(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                            const MI NON_ZERO)
 {
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
-    const u32 base_block = blockIdx.x * blockDim.x;
-    const u32 tid = base_block + threadIdx.x;
-    u32 pout = 0, pin = 1;
+    const MI base_block = blockIdx.x * blockDim.x;
+    const MI tid = base_block + threadIdx.x;
+    MI pout = 0, pin = 1;
 
     // Multiplication
     prefix[pout * blockDim.x + threadIdx.x] = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
@@ -459,7 +459,7 @@ __global__ void kernel_prefix_sum_unlimited(const u32* x, const u32* y, const MV
     //     printf("\n");
 
     // Partial prefix sum
-    for (u32 s = 1; s <= blockDim.x >> 1; s <<= 1)
+    for (MI s = 1; s <= blockDim.x >> 1; s <<= 1)
     {
         // swap double buffer indices
         pout = 1 - pout;
@@ -494,17 +494,17 @@ __global__ void kernel_prefix_sum_unlimited(const u32* x, const u32* y, const MV
     }
 }
 
-__global__ void kernel_prefix_sum_max_32_work_efficient(const u32* x, const u32* y, const MV* val, const MV* vec,
-                                                        MV* res, const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_max_32_work_efficient(const MI* x, const MI* y, const MV* val, const MV* vec,
+                                                        MV* res, const MI NON_ZERO)
 {
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
-    const u32 shared_size = blockDim.x * 2;
-    const u32 base_block = blockIdx.x * shared_size;
-    const u32 thid = threadIdx.x;
+    const MI shared_size = blockDim.x * 2;
+    const MI base_block = blockIdx.x * shared_size;
+    const MI thid = threadIdx.x;
 
     // Multiplication
-    const u32 in1 = 2 * thid;
-    const u32 in2 = 2 * thid + 1;
+    const MI in1 = 2 * thid;
+    const MI in2 = 2 * thid + 1;
     prefix[in1] = base_block + in1 + 1 < NON_ZERO ? val[base_block + in1 + 1] * vec[x[base_block + in1 + 1]] : 0;
     prefix[in2] = base_block + in2 + 1 < NON_ZERO && threadIdx.x != blockDim.x - 1
         ? val[base_block + in2 + 1] * vec[x[base_block + in2 + 1]]
@@ -520,13 +520,13 @@ __global__ void kernel_prefix_sum_max_32_work_efficient(const u32* x, const u32*
 
     // Partial prefix sum
     // build sum in place up the tree
-    u32 offset = 1;
-    for (u32 d = shared_size >> 1; d > 0; d >>= 1)
+    MI offset = 1;
+    for (MI d = shared_size >> 1; d > 0; d >>= 1)
     {
         if (thid < d)
         {
-            const u32 ai = offset * (2 * thid + 1) - 1;
-            const u32 bi = offset * (2 * thid + 2) - 1;
+            const MI ai = offset * (2 * thid + 1) - 1;
+            const MI bi = offset * (2 * thid + 2) - 1;
             prefix[bi] += prefix[ai];
         }
         offset <<= 1;
@@ -546,13 +546,13 @@ __global__ void kernel_prefix_sum_max_32_work_efficient(const u32* x, const u32*
     //     printf("\n");
 
     // traverse down tree & build scan
-    for (u32 d = 1; d < shared_size; d <<= 1)
+    for (MI d = 1; d < shared_size; d <<= 1)
     {
         offset >>= 1;
         if (thid < d)
         {
-            const u32 ai = offset * (2 * thid + 1) - 1;
-            const u32 bi = offset * (2 * thid + 2) - 1;
+            const MI ai = offset * (2 * thid + 1) - 1;
+            const MI bi = offset * (2 * thid + 2) - 1;
 
             const MV t = prefix[ai];
             prefix[ai] = prefix[bi];
@@ -566,9 +566,9 @@ __global__ void kernel_prefix_sum_max_32_work_efficient(const u32* x, const u32*
     //     printf("\n");
 
     // Edge detection and memory write
-    for (u32 el = 2 * thid; el < 2 * (thid + 1); el++)
+    for (MI el = 2 * thid; el < 2 * (thid + 1); el++)
     {
-        const u32 tid = base_block + el;
+        const MI tid = base_block + el;
         if (tid + 1 > NON_ZERO)
         {
         }
@@ -585,18 +585,18 @@ __global__ void kernel_prefix_sum_max_32_work_efficient(const u32* x, const u32*
 }
 
 
-__global__ void kernel_prefix_sum_we_32_conflict_free(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
-                                                      const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_we_32_conflict_free(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                                      const MI NON_ZERO)
 {
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
-    const u32 shared_size = blockDim.x * 2;
-    const u32 base_block = blockIdx.x * shared_size;
-    const u32 thid = threadIdx.x;
+    const MI shared_size = blockDim.x * 2;
+    const MI base_block = blockIdx.x * shared_size;
+    const MI thid = threadIdx.x;
 
     // Multiplication
-    u32 in1 = 2 * thid;
+    MI in1 = 2 * thid;
     in1 += CONFLICT_FREE_OFFSET(in1);
-    u32 in2 = 2 * thid + 1;
+    MI in2 = 2 * thid + 1;
     in2 += CONFLICT_FREE_OFFSET(in2);
     prefix[in1] = base_block + in1 + 1 < NON_ZERO ? val[base_block + in1 + 1] * vec[x[base_block + in1 + 1]] : 0;
     prefix[in2] = base_block + in2 + 1 < NON_ZERO && threadIdx.x != blockDim.x - 1
@@ -613,14 +613,14 @@ __global__ void kernel_prefix_sum_we_32_conflict_free(const u32* x, const u32* y
 
     // Partial prefix sum
     // build sum in place up the tree
-    u32 offset = 1;
-    for (u32 d = shared_size >> 1; d > 0; d >>= 1)
+    MI offset = 1;
+    for (MI d = shared_size >> 1; d > 0; d >>= 1)
     {
         if (thid < d)
         {
-            u32 ai = offset * (2 * thid + 1) - 1;
+            MI ai = offset * (2 * thid + 1) - 1;
             ai += CONFLICT_FREE_OFFSET(ai);
-            u32 bi = offset * (2 * thid + 2) - 1;
+            MI bi = offset * (2 * thid + 2) - 1;
             bi += CONFLICT_FREE_OFFSET(bi);
 
             prefix[bi] += prefix[ai];
@@ -642,14 +642,14 @@ __global__ void kernel_prefix_sum_we_32_conflict_free(const u32* x, const u32* y
     //     printf("\n");
 
     // traverse down tree & build scan
-    for (u32 d = 1; d < shared_size; d <<= 1)
+    for (MI d = 1; d < shared_size; d <<= 1)
     {
         offset >>= 1;
         if (thid < d)
         {
-            u32 ai = offset * (2 * thid + 1) - 1;
+            MI ai = offset * (2 * thid + 1) - 1;
             ai += CONFLICT_FREE_OFFSET(ai);
-            u32 bi = offset * (2 * thid + 2) - 1;
+            MI bi = offset * (2 * thid + 2) - 1;
             bi += CONFLICT_FREE_OFFSET(bi);
 
             const MV t = prefix[ai];
@@ -664,10 +664,10 @@ __global__ void kernel_prefix_sum_we_32_conflict_free(const u32* x, const u32* y
     //     printf("\n");
 
     // Edge detection and memory write
-    for (u32 i = 2 * thid; i < 2 * (thid + 1); i++)
+    for (MI i = 2 * thid; i < 2 * (thid + 1); i++)
     {
-        const u32 el = i + CONFLICT_FREE_OFFSET(i);
-        const u32 tid = base_block + el;
+        const MI el = i + CONFLICT_FREE_OFFSET(i);
+        const MI tid = base_block + el;
         if (tid + 1 > NON_ZERO)
         {
         }
@@ -684,19 +684,19 @@ __global__ void kernel_prefix_sum_we_32_conflict_free(const u32* x, const u32* y
 }
 
 
-__global__ void kernel_prefix_sum_we_unlimited_conflict_free(const u32* x, const u32* y, const MV* val, const MV* vec,
-                                                             MV* res, const u32 NON_ZERO)
+__global__ void kernel_prefix_sum_we_unlimited_conflict_free(const MI* x, const MI* y, const MV* val, const MV* vec,
+                                                             MV* res, const MI NON_ZERO)
 {
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
-    const u32 shared_size = blockDim.x * 2;
-    const u32 base_block = blockIdx.x * shared_size;
-    const u32 thid = threadIdx.x;
-    u32 pout = 0, pin = 1;
+    const MI shared_size = blockDim.x * 2;
+    const MI base_block = blockIdx.x * shared_size;
+    const MI thid = threadIdx.x;
+    MI pout = 0, pin = 1;
 
     // Multiplication
-    u32 in1 = 2 * thid;
+    MI in1 = 2 * thid;
     in1 += CONFLICT_FREE_OFFSET(in1);
-    u32 in2 = 2 * thid + 1;
+    MI in2 = 2 * thid + 1;
     in2 += CONFLICT_FREE_OFFSET(in2);
     prefix[pout * shared_size + in1] =
         base_block + in1 + 1 < NON_ZERO ? val[base_block + in1 + 1] * vec[x[base_block + in1 + 1]] : 0;
@@ -714,8 +714,8 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const u32* x, const
 
     // Partial prefix sum
     // build sum in place up the tree
-    u32 offset = 1;
-    for (u32 d = shared_size >> 1; d > 0; d >>= 1)
+    MI offset = 1;
+    for (MI d = shared_size >> 1; d > 0; d >>= 1)
     {
         pout = 1 - pout;
         pin = 1 - pin;
@@ -725,9 +725,9 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const u32* x, const
 
         if (thid < d)
         {
-            u32 ai = offset * (2 * thid + 1) - 1;
+            MI ai = offset * (2 * thid + 1) - 1;
             ai += CONFLICT_FREE_OFFSET(ai);
-            u32 bi = offset * (2 * thid + 2) - 1;
+            MI bi = offset * (2 * thid + 2) - 1;
             bi += CONFLICT_FREE_OFFSET(bi);
 
             prefix[pout * shared_size + bi] = prefix[pin * shared_size + bi] + prefix[pin * shared_size + ai];
@@ -749,7 +749,7 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const u32* x, const
     //     printf("\n");
 
     // traverse down tree & build scan
-    for (u32 d = 1; d < shared_size; d <<= 1)
+    for (MI d = 1; d < shared_size; d <<= 1)
     {
         pout = 1 - pout;
         pin = 1 - pin;
@@ -760,9 +760,9 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const u32* x, const
         offset >>= 1;
         if (thid < d)
         {
-            u32 ai = offset * (2 * thid + 1) - 1;
+            MI ai = offset * (2 * thid + 1) - 1;
             ai += CONFLICT_FREE_OFFSET(ai);
-            u32 bi = offset * (2 * thid + 2) - 1;
+            MI bi = offset * (2 * thid + 2) - 1;
             bi += CONFLICT_FREE_OFFSET(bi);
 
             const MV t = prefix[pin * shared_size + ai];
@@ -777,10 +777,10 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const u32* x, const
     //     printf("\n");
 
     // Edge detection and memory write
-    for (u32 i = 2 * thid; i < 2 * (thid + 1); i++)
+    for (MI i = 2 * thid; i < 2 * (thid + 1); i++)
     {
-        const u32 el = i + CONFLICT_FREE_OFFSET(i);
-        const u32 tid = base_block + el;
+        const MI el = i + CONFLICT_FREE_OFFSET(i);
+        const MI tid = base_block + el;
         if (tid + 1 > NON_ZERO)
         {
         }

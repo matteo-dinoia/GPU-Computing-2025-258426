@@ -17,16 +17,16 @@
 #define CONFLICT_FREE_OFFSET(n) ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS))
 
 // Types definitions
-typedef void (*KernelFunc)(const u32*, const u32*, const MV*, const MV*, MV*, u32);
-typedef std::tuple<u32, u32, u32> (*KernelParameterGetter)(const GpuCoo<u32, MV>&);
+typedef void (*KernelFunc)(const MI*, const MI*, const MV*, const MV*, MV*, MI);
+typedef std::tuple<MI, MI, MI> (*KernelParameterGetter)(const GpuCoo<MI, MV>&);
 struct SmpvKernel
 {
     std::string_view name;
     KernelFunc execute;
     KernelParameterGetter parameter_getter;
 };
-#define KERNEL_DEF(name) __global__ void name(const u32*, const u32*, const MV*, const MV*, MV*, u32)
-#define PAR_GETTER_DEF(name) std::tuple<u32, u32, u32> name(const GpuCoo<u32, MV>&)
+#define KERNEL_DEF(name) __global__ void name(const MI*, const MI*, const MV*, const MV*, MV*, MI)
+#define PAR_GETTER_DEF(name) std::tuple<MI, MI, MI> name(const GpuCoo<MI, MV>&)
 #define WRAPPER_DEF(name, par_getter) constexpr SmpvKernel name = {#name, kernel_##name, (par_getter)}
 
 

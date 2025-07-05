@@ -8,21 +8,21 @@ using std::cout, std::endl;
 #define RAND_BOUND 10
 #define RAND_PREC 1000
 
-void randomize_dense_vec(MV* vec, const u32 N)
+void randomize_dense_vec(MV* vec, const MI N)
 {
-    for (u32 i = 0; i < N; i++)
+    for (MI i = 0; i < N; i++)
     {
         const auto tmp = static_cast<MV>(rand() % (RAND_BOUND * RAND_PREC * 2)); // NOLINT(*-msc50-cpp)
         vec[i] = tmp / RAND_PREC - RAND_BOUND;
     }
 }
 
-void print_diff_info(const MV* v, const MV* control, const u32 LEN, const std::string_view name)
+void print_diff_info(const MV* v, const MV* control, const MI LEN, const std::string_view name)
 {
-    u32 n_error = 0;
-    u32 i_first_err = 0;
+    MI n_error = 0;
+    MI i_first_err = 0;
 
-    for (u32 i = 0; i < LEN; i++)
+    for (MI i = 0; i < LEN; i++)
     {
         if (std::fabs(v[i] - control[i]) > std::max(std::fabs(control[i] * 0.1), 0.01))
         {
@@ -46,12 +46,12 @@ void print_diff_info(const MV* v, const MV* control, const u32 LEN, const std::s
     }
 }
 
-void print_min_max(const MV* v, const u32 len)
+void print_min_max(const MV* v, const MI len)
 {
     MV max = -100;
     MV min = 100;
 
-    for (u32 i = 0; i < len; i++)
+    for (MI i = 0; i < len; i++)
     {
         max = std::max(v[i], max);
         min = std::min(v[i], min);
@@ -60,9 +60,9 @@ void print_min_max(const MV* v, const u32 len)
     cout << "Vector is in range [" << min << ", " << max << "]" << endl;
 }
 
-bool is_sorted_indexes(const u32* v, const u32 len)
+bool is_sorted_indexes(const MI* v, const MI len)
 {
-    for (u32 i = 1; i < len; i++)
+    for (MI i = 1; i < len; i++)
     {
         if (v[i - 1] > v[i])
             return false;
@@ -70,9 +70,9 @@ bool is_sorted_indexes(const u32* v, const u32 len)
     return true;
 }
 
-u32 lowest_greater_2_power(const u32 n)
+MI lowest_greater_2_power(const MI n)
 {
-    u32 res = 1;
+    MI res = 1;
     while (res < n)
         res <<= 1;
     return res;
