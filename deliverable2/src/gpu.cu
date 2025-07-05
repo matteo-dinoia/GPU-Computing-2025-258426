@@ -30,8 +30,7 @@ __global__ void kernel_block_jump_shared(const MI* x, const MI* y, const MV* val
 }
 
 // ASSUME the result vector is zeroed before calling this function
-__global__ void kernel_full_strided(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
-                                    const MI NON_ZERO)
+__global__ void kernel_full_strided(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res, const MI NON_ZERO)
 {
     const auto per_thread = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x);
     const MI tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -220,10 +219,7 @@ __global__ void kernel_prefix_sum_warp(const MI* x, const MI* y, const MV* val, 
     const MI tid_warp = threadIdx.x & (warpSize - 1);
 
     // Multiplication
-    // TODO REMOVE
-    const MV tmp_val = tid < NON_ZERO ? val[tid] : 0;
-    const MV tmp_vec = tid < NON_ZERO ? vec[x[tid]] : 0;
-    MV prefix_i = tmp_val * tmp_vec;
+    MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
 
     // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
     // if (threadIdx.x == 0)
@@ -388,8 +384,8 @@ __global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-__global__ void kernel_prefix_sum_warp_with_block_jump(const MI* x, const MI* y, const MV* val, const MV* vec,
-                                                       MV* res, const MI NON_ZERO)
+__global__ void kernel_prefix_sum_warp_with_block_jump(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                                       const MI NON_ZERO)
 {
     const MI cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
     const MI start = blockIdx.x * cell_per_block + threadIdx.x;
@@ -494,8 +490,8 @@ __global__ void kernel_prefix_sum_unlimited(const MI* x, const MI* y, const MV* 
     }
 }
 
-__global__ void kernel_prefix_sum_max_32_work_efficient(const MI* x, const MI* y, const MV* val, const MV* vec,
-                                                        MV* res, const MI NON_ZERO)
+__global__ void kernel_prefix_sum_max_32_work_efficient(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
+                                                        const MI NON_ZERO)
 {
     extern __shared__ MV prefix[]; // NOLINT(*-redundant-declaration)
     const MI shared_size = blockDim.x * 2;
