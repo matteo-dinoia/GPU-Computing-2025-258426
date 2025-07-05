@@ -19,7 +19,7 @@ inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<u32, MV>& matrix
 
     bzero(res, matrix.ROWS * sizeof(MV));
     const auto [blocks, threads, shm] = kernel->parameter_getter(matrix);
-    cout << "Running " << kernel->name << " with " << blocks << " " << threads << " " << shm << endl;
+    // cout << "Running " << kernel->name << " with " << blocks << " " << threads << " " << shm << endl;
 
     GPU_TIMER_START();
     if (shm == 0)
@@ -46,7 +46,6 @@ void execution(const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res, MV* res_co
     // Kernel used in the testing
     const std::vector kernels = {baseline,
                                  block_jump,
-                                 block_jump_shared,
                                  warp_jump,
                                  prefix_sum_unlimited,
                                  prefix_sum_32_max,
@@ -54,6 +53,7 @@ void execution(const GpuCoo<u32, MV>& matrix, const MV* vec, MV* res, MV* res_co
                                  prefix_sum_we_32_conflict_free,
                                  prefix_sum_we_unlimited_conflict_free,
                                  prefix_sum_warp,
+                                 prefix_sum_warp_2x,
                                  prefix_sum_warp_with_block_jump,
                                  prefix_sum_warp_merged};
 

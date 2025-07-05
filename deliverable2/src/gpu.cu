@@ -220,7 +220,10 @@ __global__ void kernel_prefix_sum_warp(const u32* x, const u32* y, const MV* val
     const u32 tid_warp = threadIdx.x & (warpSize - 1);
 
     // Multiplication
-    MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
+    // TODO REMOVE
+    const MV tmp_val = tid < NON_ZERO ? val[tid] : 0;
+    const MV tmp_vec = tid < NON_ZERO ? vec[x[tid]] : 0;
+    MV prefix_i = tmp_val * tmp_vec;
 
     // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
     // if (threadIdx.x == 0)
@@ -250,6 +253,53 @@ __global__ void kernel_prefix_sum_warp(const u32* x, const u32* y, const MV* val
     {
         atomicAdd(&res[y[tid]], prefix_i);
         atomicAdd(&res[y[tid + 1]], -prefix_i);
+    }
+}
+
+
+// ASSUME the result vector is zeroed before calling this function
+// Compute multiplication
+// Compute prefix sum (only fist step)
+// Then using edges atomically push to global memory
+__global__ void kernel_prefix_sum_warp_2x(const u32* x, const u32* y, const MV* val, const MV* vec, MV* res,
+                                          const u32 NON_ZERO)
+{
+    const u32 base_block = blockIdx.x * blockDim.x;
+    const u32 tid = base_block + threadIdx.x;
+    const u32 tid_warp = threadIdx.x & (warpSize - 1);
+
+    // Multiplication
+    MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
+
+    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
+    // if (threadIdx.x == 0)
+    //     printf("\n");
+
+    // Partial prefix sum
+    for (u32 s = 1; s <= warpSize >> 1; s <<= 1)
+    {
+        const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
+        if (tid_warp >= s)
+            prefix_i += to_add;
+        // printf("SUM %d %f\n", threadIdx.x, prefix_i);
+        // if (threadIdx.x == 0)
+        //     printf("\n");
+    }
+
+
+    // Edge detection and memory write
+    if (tid + 1 > NON_ZERO)
+    {
+    }
+    else if (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO)
+    {
+        atomicAdd(&res[y[tid]], prefix_i);
+    }
+    else if (y[tid] < y[tid + 1])
+    {
+        atomicAdd(&res[y[tid]], prefix_i);
+        if (tid + 2 < NON_ZERO && y[tid + 1] == y[tid + 2])
+            atomicAdd(&res[y[tid + 1]], -prefix_i);
     }
 }
 
