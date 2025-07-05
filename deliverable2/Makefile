@@ -4,24 +4,35 @@ DIST_MMIO_INCLUDE=$(DIST_MMIO)/include
 DIST_MMIO_OBJ=build/dmmio_mmio.o build/dmmio_utils.o
 
 # CPP
-CFLAGS=-Wall -Wextra -g
+CFLAGS=-Wall -Wextra
 INC_DIR=src/include
 OBJS=$(DIST_MMIO_OBJ) build/gpu.o build/tester.o build/time_utils.o build/utils.o build/parameters.o
+PROF_OBJS=$(DIST_MMIO_OBJ) build/gpu_profiling.o build/tester_profiling.o build/time_utils_profiling.o build/utils_profiling.o build/parameters_profiling.o
 
 # CUDA
-NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)" -O3 --std c++20
-INCLUDES=-I$(INC_DIR) -I$(DIST_MMIO_INCLUDE)
+NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)" -O3 -g
 PROFILE_FLAGS=-lineinfo
 
 # GPU
 all: build/main build/main_profiling build/mtx_to_bmtx
 normal: build/main
 profiling: build/main_profiling
+
 build/main: src/main.cu $(OBJS) $(INC_DIR)  Makefile | build
 	nvcc $(NVCC_FLAGS) $(INCLUDES) $< $(OBJS) -o $@
 
-build/main_profiling: src/main.cu $(OBJS) $(INC_DIR) Makefile | build
-	nvcc $(NVCC_FLAGS) $(PROFILE_FLAGS) $(NVCC_INCLUDES) $< $(OBJS) -o $@
+build/%.o: src/%.cu $(INC_DIR) Makefile | build
+	nvcc $(NVCC_FLAGS) -c $< -o $@
+
+build/main_profiling: src/main.cu $(PROF_OBJS) $(INC_DIR) Makefile | build
+	nvcc $(NVCC_FLAGS) $(PROFILE_FLAGS) $< $(PROF_OBJS) -o $@
+
+build/%_profiling.o: src/%.cu $(INC_DIR) Makefile | build
+	nvcc $(NVCC_FLAGS) $(PROFILE_FLAGS) -c $< -o $@
+
+# MTX
+build/mtx_to_bmtx: distributed_mmio/src/mtx_to_bmtx.cpp Makefile | build
+	g++ $(CFLAGS) $< -o $@ distributed_mmio/src/mmio_utils.cpp distributed_mmio/src/mmio.cpp
 
 build/dmmio_mmio.o: $(DIST_MMIO)/src/mmio.cpp
 	nvcc $(NVCC_FLAGS) -c $< -o $@
@@ -29,12 +40,6 @@ build/dmmio_mmio.o: $(DIST_MMIO)/src/mmio.cpp
 build/dmmio_utils.o: $(DIST_MMIO)/src/mmio_utils.cpp
 	nvcc $(NVCC_FLAGS) -c $< -o $@
 
-build/%.o: src/%.cu $(INC_DIR) Makefile | build
-	nvcc $(NVCC_FLAGS) -c $< -o $@
-
-# TODO improve
-build/mtx_to_bmtx: distributed_mmio/src/mtx_to_bmtx.cpp Makefile | build
-	g++ $(CFLAGS) $< -o $@ distributed_mmio/src/mmio_utils.cpp distributed_mmio/src/mmio.cpp
 
 build:
 	mkdir -p build
