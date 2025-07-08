@@ -7,8 +7,7 @@
 // ASSUME the result vector is zeroed before calling this function
 __global__ void kernel_baseline(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res, const MI NON_ZERO)
 {
-    const MI start = blockIdx.x * blockDim.x;
-    const MI el = start + threadIdx.x;
+    const MI el = blockIdx.x * blockDim.x + threadIdx.x;
     if (el < NON_ZERO)
         atomicAdd(&res[y[el]], val[el] * vec[x[el]]);
 }
@@ -391,7 +390,7 @@ __global__ void kernel_prefix_sum_warp_2x(const MI* x, const MI* y, const MV* va
 __global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
                                               const MI NON_ZERO)
 {
-    extern __shared__ MV first_elements[]; // NOLINT(*-redundant-declaration)
+    extern __shared__ MV last_elems[]; // NOLINT(*-redundant-declaration)
     const MI base_block = blockIdx.x * blockDim.x;
     const MI tid = base_block + threadIdx.x;
     const MI tid_warp = threadIdx.x & (warpSize - 1);
@@ -420,7 +419,7 @@ __global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV
     // Put sum in first element of each warp
     if (tid_warp + 1 == warpSize)
     {
-        first_elements[id_warp] = prefix_i;
+        last_elems[id_warp] = prefix_i;
         // printf("FIRSTS %d %f\n", id_warp, prefix_i);
         // if (id_warp == 0)
         //     printf("\n");
@@ -429,19 +428,19 @@ __global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV
     __syncthreads();
     if (threadIdx.x < 32)
     {
-        MV first_el_of_warp = first_elements[tid_warp];
+        MV last_el_of_warp = tid_warp * warpSize < NON_ZERO ? last_elems[tid_warp] : 0;
         for (MI s = 1; s <= warpSize >> 1; s <<= 1)
         {
-            const MV to_add = __shfl_up_sync(0xffffffff, first_el_of_warp, s);
+            const MV to_add = __shfl_up_sync(0xffffffff, last_el_of_warp, s);
             if (tid_warp >= s)
-                first_el_of_warp += to_add;
+                last_el_of_warp += to_add;
         }
-        first_elements[tid_warp] = first_el_of_warp;
+        last_elems[tid_warp] = last_el_of_warp;
     }
     __syncthreads();
 
     // Complete sum
-    const MV prefix_base = id_warp > 0 ? first_elements[id_warp - 1] : 0;
+    const MV prefix_base = id_warp > 0 ? last_elems[id_warp - 1] : 0;
     prefix_i += prefix_base;
 
     // printf("TOTOAL_SUM %d %f\n", threadIdx.x, prefix_i);
