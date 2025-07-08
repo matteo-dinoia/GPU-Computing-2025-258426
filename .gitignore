@@ -1,5 +1,7 @@
 # IDE
 .idea/
+datasets/
+profiler_results/
 
 # Matrix
 *.bmtx
