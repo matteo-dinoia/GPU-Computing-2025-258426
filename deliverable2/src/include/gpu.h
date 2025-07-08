@@ -44,9 +44,12 @@ KERNEL_DEF(kernel_prefix_sum_we_32_conflict_free);
 KERNEL_DEF(kernel_prefix_sum_we_unlimited_conflict_free);
 KERNEL_DEF(kernel_block_jump_shared);
 KERNEL_DEF(kernel_prefix_sum_warp);
+KERNEL_DEF(kernel_prefix_sum_s_warp);
+KERNEL_DEF(kernel_prefix_sum_s_warp_jump_block);
 KERNEL_DEF(kernel_prefix_sum_warp_2x);
 KERNEL_DEF(kernel_prefix_sum_warp_with_block_jump);
 KERNEL_DEF(kernel_prefix_sum_warp_merged);
+
 
 // Define parameter getter function (with helper macro)
 PAR_GETTER_DEF(parameters_for_baseline);
@@ -74,6 +77,8 @@ WRAPPER_DEF(prefix_sum_we_32_conflict_free, parameters_for_prefix_sum_max_32_eff
 WRAPPER_DEF(prefix_sum_we_unlimited_conflict_free, parameters_for_prefix_sum_we_unlimited);
 WRAPPER_DEF(block_jump_shared, parameters_for_basic_with_2_shm);
 WRAPPER_DEF(prefix_sum_warp, parameters_prefix_sum_warp);
+WRAPPER_DEF(prefix_sum_s_warp, parameters_prefix_sum_warp);
+WRAPPER_DEF(prefix_sum_s_warp_jump_block, parameters_prefix_sum_warp_with_block_jump);
 WRAPPER_DEF(prefix_sum_warp_2x, parameters_prefix_sum_warp);
 WRAPPER_DEF(prefix_sum_warp_with_block_jump, parameters_prefix_sum_warp_with_block_jump);
 WRAPPER_DEF(prefix_sum_warp_merged, parameters_prefix_sum_warp_merged);
