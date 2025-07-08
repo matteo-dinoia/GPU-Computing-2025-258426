@@ -10,7 +10,7 @@ using std::cout, std::endl;
 #define CYCLES 1
 #define WARMUP_CYCLES 0
 #define PRINT_INTERMEDIATE false
-#define CHECK_CORRECT false
+#define CHECK_CORRECT true
 
 inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res)
 {
@@ -27,10 +27,13 @@ inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<MI, MV>& matrix,
     else
         kernel->execute<<<blocks, threads, shm>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
     GPU_TIMER_STOP(&time);
-    if (cudaGetLastError() != cudaSuccess)
+
+    const cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess)
     {
-        cout << "Kernel " << kernel->name << " failed" << endl;
+        cout << "Kernel " << kernel->name << " failed with " << err << endl;
         cout << "Runned " << kernel->name << " with " << blocks << " " << threads << " " << shm << endl;
+        // TODO CHECK DELANUY
         return -1;
     }
 
