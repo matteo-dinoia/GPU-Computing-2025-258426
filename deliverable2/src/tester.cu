@@ -76,18 +76,16 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
     for (cycle = -WARMUP_CYCLES; cycle < CYCLES && !failed; cycle++)
     {
         // Kernels
-        gpu_times[0] = test_kernel(&kernels[0], matrix, vec, res_control);
-        // print_min_max(res_control, matrix.ROWS);
-
-        for (u32 i = 1; i < kernels.size() && !failed; i++)
+        for (u32 i = 0; i < kernels.size() && !failed; i++)
         {
-            gpu_times[i] = test_kernel(&kernels[i], matrix, vec, res);
+            gpu_times[i] = test_kernel(&kernels[i], matrix, vec, i == 0 ? res_control : res);
+            // print_min_max(res_control, matrix.ROWS);
             if (gpu_times[i] < 0)
             {
                 failed = true;
                 failed_idx = i;
             }
-            else if (cycle >= 0 && CHECK_CORRECT)
+            else if (i != 0 && cycle >= 0 && CHECK_CORRECT)
                 print_diff_info(res, res_control, matrix.ROWS, kernels[i].name);
         }
 
@@ -118,6 +116,7 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
     }
     else
     {
+        const double avg0 = sum_times[0] / cycle;
         cout << "|" << endl;
         cout << "|-----> Kernel Time (average): (kernel_id, block_size, avg_time, gflops)" << endl;
         for (u32 i = 0; i < kernels.size(); i++)
@@ -127,8 +126,10 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
                 const double avg = sum_times[i] / cycle;
                 const double gflops = 2 * (matrix.NON_ZERO / avg / 1e6);
                 const double gbs = 6 * 4 * (matrix.NON_ZERO / avg / 1e6);
-                cout << "|---------->[" << kernels[i].name << "]=> " << avg << "ms (" << gflops << " Gflops " << gbs
-                     << " Gbs)" << endl;
+                cout << "|---------->[" << kernels[i].name << "]=> ";
+                for (u32 j = 0; j < 40 - kernels[i].name.size(); j++)
+                    cout << " ";
+                cout << "[" << avg0 / avg << "x] " << avg << "ms (" << gflops << " Gflops " << gbs << " Gbs)" << endl;
             }
             else if (sum_times[i] == 0.0)
             {
