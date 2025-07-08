@@ -7,8 +7,14 @@
 
 using std::cout, std::endl;
 
+#if false
 #define CYCLES 1
 #define WARMUP_CYCLES 0
+#else
+#define CYCLES 5
+#define WARMUP_CYCLES 1
+#endif
+
 #define PRINT_INTERMEDIATE false
 #define CHECK_CORRECT true
 
