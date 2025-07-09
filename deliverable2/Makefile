@@ -14,9 +14,10 @@ NVCC_FLAGS=--gpu-architecture=sm_80 -m64 --compiler-options "$(CFLAGS)" -O3 -g
 PROFILE_FLAGS=-lineinfo
 
 # GPU
-all: build/main build/main_profiling build/mtx_to_bmtx
+all: normal profiling converter
 normal: build/main
 profiling: build/main_profiling
+converter: build/mtx_to_bmtx
 
 build/main: src/main.cu $(OBJS) $(INC_DIR)  Makefile | build
 	nvcc $(NVCC_FLAGS) $(INCLUDES) $< $(OBJS) -o $@
@@ -31,8 +32,8 @@ build/%_profiling.o: src/%.cu $(INC_DIR) Makefile | build
 	nvcc $(NVCC_FLAGS) $(PROFILE_FLAGS) -c $< -o $@
 
 # MTX
-build/mtx_to_bmtx: distributed_mmio/src/mtx_to_bmtx.cpp Makefile | build
-	g++ $(CFLAGS) $< -o $@ distributed_mmio/src/mmio_utils.cpp distributed_mmio/src/mmio.cpp
+build/mtx_to_bmtx: distributed_mmio/src/mtx_to_bmtx.cpp build/dmmio_mmio.o build/dmmio_utils.o Makefile | build
+	g++ $(CFLAGS) $< -o $@ build/dmmio_mmio.o build/dmmio_utils.o
 
 build/dmmio_mmio.o: $(DIST_MMIO)/src/mmio.cpp
 	nvcc $(NVCC_FLAGS) -c $< -o $@
@@ -47,5 +48,5 @@ build:
 clean:
 	rm -f build/*
 
-.PHONY: all clean normal profiling
+.PHONY: all clean normal profiling converter
 # mt7601u 3-1:1.0: Vendor request req:07 off:0208 failed:-71

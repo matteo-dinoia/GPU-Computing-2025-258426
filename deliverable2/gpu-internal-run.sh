@@ -1,3 +1,4 @@
+#!/bin/bash
 # COMPILE
 echo 'COMPILING'
 module load CUDA/12.5 || exit;
