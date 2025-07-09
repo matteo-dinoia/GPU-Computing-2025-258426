@@ -77,7 +77,10 @@ int timed_main(const char* input_file)
     TIMER_START(2);
     cudaMemcpy(matrix.xs, coo->row, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
     cudaMemcpy(matrix.ys, coo->col, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
-    cudaMemcpy(matrix.vals, coo->val, matrix.NON_ZERO * sizeof(MV), cudaMemcpyHostToDevice);
+    if (coo->val != nullptr)
+        cudaMemcpy(matrix.vals, coo->val, matrix.NON_ZERO * sizeof(MV), cudaMemcpyHostToDevice);
+    else
+        cudaMemset(matrix.vals, 1, matrix.NON_ZERO * sizeof(MV));
     TIMER_STOP(2);
     cout << "* Copied COO to GPU memory" << endl;
 
@@ -90,7 +93,7 @@ int timed_main(const char* input_file)
 
     // Execution
     cout << "* Starting with nz=" << matrix.NON_ZERO << " cols=" << matrix.COLS << " rows=" << matrix.ROWS << "\n"
-         << endl;
+        << endl;
     TIMER_START(4);
     execution(matrix, vec, res, res_control);
     TIMER_STOP(4);
