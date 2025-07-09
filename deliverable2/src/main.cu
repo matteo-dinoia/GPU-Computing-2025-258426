@@ -48,7 +48,7 @@ int timed_main(const char* input_file)
 
     // Reading matrix data
     TIMER_START(0);
-    const COO_local<MI, MV>* coo = Distr_MMIO_COO_local_read<MI, MV>(input_file);
+    COO_local<MI, MV>* coo = Distr_MMIO_COO_local_read<MI, MV>(input_file);
     if (coo == nullptr)
     {
         printf("Failed to import graph from file [%s]\n", input_file);
@@ -107,6 +107,7 @@ int timed_main(const char* input_file)
     cudaFree(vec);
     cudaFree(res_control);
     cudaFree(res);
+    Distr_MMIO_COO_local_destroy(&coo);
     TIMER_STOP(5);
     cout << "* Finished Deallocating\n" << endl;
 
