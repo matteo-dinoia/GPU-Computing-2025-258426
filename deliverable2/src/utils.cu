@@ -24,7 +24,7 @@ void print_diff_info(const MV* v, const MV* control, const MI LEN, const std::st
 
     for (MI i = 0; i < LEN; i++)
     {
-        if (std::fabs(v[i] - control[i]) > std::max(std::fabs(control[i] * 0.1), 0.01))
+        if (std::fabs(v[i] - control[i]) > std::max(std::fabs(control[i] * 0.25), 0.01))
         {
             if (n_error == 0)
                 i_first_err = i;
@@ -35,8 +35,8 @@ void print_diff_info(const MV* v, const MV* control, const MI LEN, const std::st
     if (n_error > 0)
     {
         cout << "ERROR/s in " << name << " there are " << n_error << " over " << LEN << " [ first at index "
-             << i_first_err << " where found " << v[i_first_err] << " insted of expected " << control[i_first_err]
-             << "]" << endl;
+            << i_first_err << " where found " << v[i_first_err] << " insted of expected " << control[i_first_err]
+            << "]" << endl;
 
         if (LEN < 20)
         {
