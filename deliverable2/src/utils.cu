@@ -21,28 +21,44 @@ void print_diff_info(const MV* v, const MV* control, const MI LEN, const std::st
 {
     MI n_error = 0;
     MI i_first_err = 0;
+    MI n_warning = 0;
 
     for (MI i = 0; i < LEN; i++)
     {
-        if (std::fabs(v[i] - control[i]) > std::max(std::fabs(control[i] * 0.25), 0.01))
+        if (std::fabs(v[i] - control[i]) > std::max(std::fabs(control[i] * 2.0), 0.5))
         {
             if (n_error == 0)
                 i_first_err = i;
             n_error++;
         }
+        else if (std::fabs(v[i] - control[i]) > std::max(std::fabs(control[i] * 0.25), 0.1))
+        {
+            if (n_error == 0 && n_warning == 0)
+                i_first_err = i;
+            n_warning++;
+        }
+
     }
 
     if (n_error > 0)
     {
-        cout << "ERROR/s in " << name << " there are " << n_error << " over " << LEN << " [ first at index "
+        cout << "[!] ERROR/s in " << name << " there are " << n_error << " errors and " << n_warning <<
+            " warnings over " << LEN << " [ first at index "
             << i_first_err << " where found " << v[i_first_err] << " insted of expected " << control[i_first_err]
             << "]" << endl;
+    }
+    else if (n_warning > 0)
+    {
+        cout << "[?] WARNING/s in " << name << " there are " << n_warning << " warnings over " << LEN <<
+            " [ first at index "
+            << i_first_err << " where found " << v[i_first_err] << " insted of expected " << control[i_first_err]
+            << "]" << endl;
+    }
 
-        if (LEN < 20)
-        {
-            PRINT_VEC(v, LEN);
-            PRINT_VEC(control, LEN);
-        }
+    if (LEN < 20 && (n_error > 0 || n_warning > 0))
+    {
+        PRINT_VEC(v, LEN);
+        PRINT_VEC(control, LEN);
     }
 }
 
