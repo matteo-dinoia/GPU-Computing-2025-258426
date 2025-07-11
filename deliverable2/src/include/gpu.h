@@ -15,16 +15,20 @@
 #define NUM_BANKS 16
 #define LOG_NUM_BANKS 4
 #define CONFLICT_FREE_OFFSET(n) ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS))
+// Parameter for loop unroll
+#define HARDCODED_WARP_SIZE 32
 
 // Types definitions
 typedef void (*KernelFunc)(const MI*, const MI*, const MV*, const MV*, MV*, MI);
 typedef std::tuple<MI, MI, MI> (*KernelParameterGetter)(const GpuCoo<MI, MV>&);
+
 struct SmpvKernel
 {
     std::string_view name;
     KernelFunc execute;
     KernelParameterGetter parameter_getter;
 };
+
 #define KERNEL_DEF(name) __global__ void name(const MI*, const MI*, const MV*, const MV*, MV*, MI)
 #define PAR_GETTER_DEF(name) std::tuple<MI, MI, MI> name(const GpuCoo<MI, MV>&)
 #define WRAPPER_DEF(name, par_getter) constexpr SmpvKernel name = {#name, kernel_##name, (par_getter)}
@@ -46,6 +50,7 @@ KERNEL_DEF(kernel_block_jump_shared);
 KERNEL_DEF(kernel_prefix_sum_warp);
 KERNEL_DEF(kernel_prefix_sum_s_warp);
 KERNEL_DEF(kernel_prefix_sum_s_warp_jump_block);
+KERNEL_DEF(kernel_prefix_sum_s_warp_jump_block_unroll);
 KERNEL_DEF(kernel_prefix_sum_warp_2x);
 KERNEL_DEF(kernel_prefix_sum_warp_with_block_jump);
 KERNEL_DEF(kernel_prefix_sum_warp_merged);
@@ -79,6 +84,7 @@ WRAPPER_DEF(block_jump_shared, parameters_for_basic_with_2_shm);
 WRAPPER_DEF(prefix_sum_warp, parameters_prefix_sum_warp);
 WRAPPER_DEF(prefix_sum_s_warp, parameters_prefix_sum_warp);
 WRAPPER_DEF(prefix_sum_s_warp_jump_block, parameters_prefix_sum_warp_with_block_jump);
+WRAPPER_DEF(prefix_sum_s_warp_jump_block_unroll, parameters_prefix_sum_warp_with_block_jump);
 WRAPPER_DEF(prefix_sum_warp_2x, parameters_prefix_sum_warp);
 WRAPPER_DEF(prefix_sum_warp_with_block_jump, parameters_prefix_sum_warp_with_block_jump);
 WRAPPER_DEF(prefix_sum_warp_merged, parameters_prefix_sum_warp_merged);

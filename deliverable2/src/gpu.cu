@@ -295,6 +295,7 @@ __global__ void kernel_prefix_sum_s_warp(const MI* x, const MI* y, const MV* val
         atomicAdd(&res[yi], prefix_i);
     }
 }
+
 // ASSUME the result vector is zeroed before calling this function
 // Compute multiplication
 // Compute prefix sum (only fist step)
@@ -332,6 +333,51 @@ __global__ void kernel_prefix_sum_s_warp_jump_block(const MI* x, const MI* y, co
         // Edge detection and memory write
         const MI y_next = __shfl_down_sync(0xffffffff, yi, 1);
         if (tid < NON_ZERO && (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO || yi < y_next))
+            atomicAdd(&res[yi], prefix_i);
+    }
+}
+
+
+// ASSUME the result vector is zeroed before calling this function
+// Compute multiplication
+// Compute prefix sum (only fist step)
+// Then using edges atomically push to global memory
+__global__ void kernel_prefix_sum_s_warp_jump_block_unroll(const MI* x, const MI* y, const MV* val, const MV* vec,
+                                                           MV* res,
+                                                           const MI NON_ZERO)
+{
+    const MI cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
+    const MI start = blockIdx.x * cell_per_block + threadIdx.x;
+    const MI end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
+
+    for (MI tid = start; tid < end; tid += blockDim.x)
+    {
+        const MI tid_warp = threadIdx.x & (HARDCODED_WARP_SIZE - 1);
+        // Multiplication
+        MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
+        const MI yi = tid < NON_ZERO ? y[tid] : 0; // 0 is ok
+
+        // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
+        // if (threadIdx.x == 0)
+        //     printf("\n");
+
+        // Partial prefix sum
+#pragma unroll
+        for (MI s = 1; s < HARDCODED_WARP_SIZE; s <<= 1)
+        {
+            const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
+            const MI yi2 = __shfl_up_sync(0xffffffff, yi, s);
+            if (tid_warp >= s && yi2 == yi)
+                prefix_i += to_add;
+        }
+
+        // printf("SUM %d %f\n", threadIdx.x, prefix_i);
+        // if (threadIdx.x == 0)
+        //     printf("\n");
+
+        // Edge detection and memory write
+        const MI y_next = __shfl_down_sync(0xffffffff, yi, 1);
+        if (tid < NON_ZERO && (tid_warp == HARDCODED_WARP_SIZE - 1 || tid + 1 == NON_ZERO || yi < y_next))
             atomicAdd(&res[yi], prefix_i);
     }
 }

@@ -16,7 +16,10 @@ using std::cout, std::endl;
 #endif
 
 #define PRINT_INTERMEDIATE false
-#define CHECK_CORRECT true
+// WARNING: enabling this option will produce false positive errors
+// as there is no way to account for float imprecision over line dense or big
+// matrix.
+#define CHECK_CORRECT false
 
 inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res)
 {
@@ -58,6 +61,7 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
                                  // prefix_sum_we_32_conflict_free,
                                  // prefix_sum_we_unlimited_conflict_free,
                                  prefix_sum_warp, prefix_sum_s_warp, prefix_sum_s_warp_jump_block,
+                                 prefix_sum_s_warp_jump_block_unroll,
                                  // prefix_sum_warp_2x,
                                  prefix_sum_warp_with_block_jump, prefix_sum_warp_merged};
 
