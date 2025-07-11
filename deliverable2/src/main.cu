@@ -57,6 +57,12 @@ int timed_main(const char* input_file)
     TIMER_STOP(0);
     cout << "* Read data (" << coo->nrows << " " << coo->ncols << " " << coo->nnz << ")" << endl;
 
+    // if (coo->nnz < 50)
+    // {
+    //     for (u32 i = 0; i < coo->nnz; i++)
+    //         cout << coo->row[i] << " " << coo->col[i] << " " << (coo->val ? coo->val[i] : 1) << endl;
+    // }
+
     // Alloc memory
     TIMER_START(1);
     matrix.NON_ZERO = coo->nnz;
