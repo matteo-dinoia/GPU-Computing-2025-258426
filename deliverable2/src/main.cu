@@ -48,7 +48,7 @@ int timed_main(const char* input_file)
 
     // Reading matrix data
     TIMER_START(0);
-    COO_local<MI, MV>* coo = Distr_MMIO_COO_local_read<MI, MV>(input_file);
+    COO_local<MI, MV>* coo = Distr_MMIO_sorted_COO_local_read<MI, MV>(input_file, false);
     if (coo == nullptr)
     {
         printf("Failed to import graph from file [%s]\n", input_file);
@@ -60,8 +60,8 @@ int timed_main(const char* input_file)
     // Alloc memory
     TIMER_START(1);
     matrix.NON_ZERO = coo->nnz;
-    matrix.COLS = coo->nrows;
-    matrix.ROWS = coo->ncols;
+    matrix.COLS = coo->ncols;
+    matrix.ROWS = coo->nrows;
     cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(MI));
     cudaMallocManaged(&matrix.ys, matrix.NON_ZERO * sizeof(MI));
     cudaMallocManaged(&matrix.vals, matrix.NON_ZERO * sizeof(MV));
@@ -75,8 +75,8 @@ int timed_main(const char* input_file)
 
     // Copy data to GPU
     TIMER_START(2);
-    cudaMemcpy(matrix.xs, coo->row, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
-    cudaMemcpy(matrix.ys, coo->col, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
+    cudaMemcpy(matrix.xs, coo->col, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
+    cudaMemcpy(matrix.ys, coo->row, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
     if (coo->val != nullptr)
         cudaMemcpy(matrix.vals, coo->val, matrix.NON_ZERO * sizeof(MV), cudaMemcpyHostToDevice);
     else
