@@ -7,6 +7,7 @@
 
 using std::cout, std::endl;
 
+// Quick way to run only once
 #if false
 #define CYCLES 1
 #define WARMUP_CYCLES 0
@@ -57,12 +58,12 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
 
     // Kernel used in the testing
     const std::vector kernels = {baseline, block_jump, warp_jump, prefix_sum_unlimited, prefix_sum_32_max,
-                                 // prefix_sum_max_32_work_efficient,
-                                 // prefix_sum_we_32_conflict_free,
-                                 // prefix_sum_we_unlimited_conflict_free,
+                                 prefix_sum_max_32_work_efficient,
+                                 prefix_sum_we_32_conflict_free,
+                                 prefix_sum_we_unlimited_conflict_free,
                                  prefix_sum_warp, prefix_sum_s_warp, prefix_sum_s_warp_jump_block,
                                  prefix_sum_s_warp_jump_block_unroll,
-                                 // prefix_sum_warp_2x,
+                                 //prefix_sum_warp_2x,
                                  prefix_sum_warp_with_block_jump, prefix_sum_warp_merged};
 
     // Time definition
