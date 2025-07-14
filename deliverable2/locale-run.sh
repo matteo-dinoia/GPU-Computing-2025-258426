@@ -1,6 +1,10 @@
 #!/usr/bin/bash
-echo 'COMPILING'
+echo "COMPILING";
 make normal || exit;
 
-echo 'RUNNING (may take some time to finish)';
-./build/main $1
+# Pre run
+mkdir -p output || exit;
+rm -f output/result.err output/result.out output/partial.csv;
+
+echo -e "\nRUNNING LOCALLY, may take very long to finish (depending on matrix size)";
+./build/main $1;

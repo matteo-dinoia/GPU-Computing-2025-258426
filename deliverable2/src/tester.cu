@@ -2,10 +2,13 @@
 #include <vector>
 #include "include/gpu.h"
 #include "include/tester.h"
+#include <fstream>
+#include <sys/time.h>
 #include "include/time_utils.h"
 #include "include/utils.h"
 
-using std::cout, std::endl;
+using std::cout, std::endl, std::cerr;
+
 
 // Quick way to run only once
 #if false
@@ -16,45 +19,54 @@ using std::cout, std::endl;
 #define WARMUP_CYCLES 1
 #endif
 
-#define PRINT_INTERMEDIATE false
 // WARNING: enabling this option will produce false positive errors
 // as there is no way to account for float imprecision over line dense or big
 // matrix.
 #define CHECK_CORRECT false
 
-inline float test_kernel(const SmpvKernel* kernel, const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res)
+
+// Return a time of kernel execution and the total time with
+// also the time to reset the result vector.
+inline std::pair<float, float> test_kernel(const SmpvKernel* kernel, const GpuCoo<MI, MV>& matrix, const MV* vec,
+                                           MV* res)
 {
     float time;
     GPU_TIMER_DEF();
+    TIMER_DEF(0);
 
-    bzero(res, matrix.ROWS * sizeof(MV));
     const auto [blocks, threads, shm] = kernel->parameter_getter(matrix);
-    // cout << "Running " << kernel->name << " with " << blocks << " " << threads << " " << shm << endl;
 
+    // Reset result vector to 0
+    TIMER_START(0);
+    bzero(res, matrix.ROWS * sizeof(MV));
+    // Execute the kernel
     GPU_TIMER_START();
     if (shm == 0)
         kernel->execute<<<blocks, threads>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
     else
         kernel->execute<<<blocks, threads, shm>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
     GPU_TIMER_STOP(&time);
+    TIMER_STOP(0);
+    float total_time = TIMER_ELAPSED_MS(0);
 
     const cudaError_t err = cudaGetLastError();
     if (err != cudaSuccess)
     {
         cout << "Kernel " << kernel->name << " failed with " << err << endl;
         cout << "Runned " << kernel->name << " with " << blocks << " " << threads << " " << shm << endl;
-        // TODO CHECK DELANUY
-        return -1;
+        return std::make_pair(-1, total_time);
     }
 
     GPU_TIMER_DESTROY();
-    return time;
+    return std::make_pair(time, total_time);
 }
 
 void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_control)
 {
-    int cycle;
+    std::ofstream csv;
+    csv.open("output/partial.csv");
 
+    int cycle;
 
     // Kernel used in the testing
     const std::vector kernels = {baseline, block_jump, warp_jump, prefix_sum_unlimited, prefix_sum_32_max,
@@ -67,8 +79,15 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
                                  prefix_sum_warp_with_block_jump, prefix_sum_warp_merged};
 
     // Time definition
+    float total_time[kernels.size()];
+    double sum_total_time[kernels.size()];
     float gpu_times[kernels.size()];
-    double sum_times[kernels.size()] = {};
+    double sum_gpu_times[kernels.size()] = {};
+
+    // Init CSV file
+    for (u32 i = 0; i < kernels.size(); i++)
+        csv << kernels[i].name << (i + 1 != kernels.size() ? ", " : "");
+    csv << endl;
 
     // Execute multiple time
     bool failed = false;
@@ -78,7 +97,10 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
         // Kernels
         for (u32 i = 0; i < kernels.size() && !failed; i++)
         {
-            gpu_times[i] = test_kernel(&kernels[i], matrix, vec, i == 0 ? res_control : res);
+            auto t = test_kernel(&kernels[i], matrix, vec, i == 0 ? res_control : res);
+            gpu_times[i] = t.first;
+            total_time[i] = t.second;
+
             // print_min_max(res_control, matrix.ROWS);
             if (gpu_times[i] < 0)
             {
@@ -89,57 +111,60 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
                 print_diff_info(res, res_control, matrix.ROWS, kernels[i].name);
         }
 
-        // Save times
+        // Save times and print csv / partial results
         if (cycle >= 0 && !failed)
         {
-            cout << "|--> Kernel Time (id " << cycle << "): ";
-
             for (u32 i = 0; i < kernels.size(); i++)
             {
-                if (gpu_times[i] < 0.0 || sum_times[i] < 0.0)
-                    sum_times[i] = -1;
+                csv << gpu_times[i] << (i + 1 != kernels.size() ? ", " : "");
+                if (gpu_times[i] < 0.0 || sum_gpu_times[i] < 0.0)
+                {
+                    sum_gpu_times[i] = -1;
+                    sum_total_time[i] = -1;
+                }
                 else
-                    sum_times[i] += gpu_times[i];
-#if PRINT_INTERMEDIATE == true
-                cout << "[" << kernels[i].name << "]=> " << gpu_times[i] << "ms ";
-#endif
+                {
+                    sum_gpu_times[i] += gpu_times[i];
+                    sum_total_time[i] += total_time[i];
+                }
             }
-
-            cout << endl;
+            csv << endl;
+            cout << "|--> Kernel Time (cycle " << cycle << ") " << endl;
         }
     }
 
 
     if (failed)
     {
-        cout << "\nFAILED when running kernel " << kernels[failed_idx].name << "\n" << endl;
+        cerr << "\nFAILED when running kernel " << kernels[failed_idx].name << "\n" << endl;
+        return;
     }
-    else
+
+    // Print compact results
+    const double avg0 = sum_gpu_times[0] / cycle;
+    cout << "|" << endl;
+    cout << "|-----> Kernel Time (average): (kernel_id, block_size, avg_time, gflops)" << endl;
+    for (u32 i = 0; i < kernels.size(); i++)
     {
-        const double avg0 = sum_times[0] / cycle;
-        cout << "|" << endl;
-        cout << "|-----> Kernel Time (average): (kernel_id, block_size, avg_time, gflops)" << endl;
-        for (u32 i = 0; i < kernels.size(); i++)
+        if (sum_gpu_times[i] > 0.0)
         {
-            if (sum_times[i] > 0.0)
-            {
-                const double avg = sum_times[i] / cycle;
-                const double gflops = 2 * (matrix.NON_ZERO / avg / 1e6);
-                const double gbs = 6 * 4 * (matrix.NON_ZERO / avg / 1e6);
-                cout << "|---------->[" << kernels[i].name << "]=> ";
-                for (u32 j = 0; j < 40 - kernels[i].name.size(); j++)
-                    cout << " ";
-                cout << "[" << avg0 / avg << "x] " << avg << "ms (" << gflops << " Gflops " << gbs << " Gbs)" << endl;
-            }
-            else if (sum_times[i] == 0.0)
-            {
-                cout << "|---------->[" << kernels[i].name << "]=> not runned" << endl;
-            }
-            else
-            {
-                cout << "|---------->[" << kernels[i].name << "]=> failed" << endl;
-            }
+            const double avg = sum_gpu_times[i] / cycle;
+            const double gflops = 2 * (matrix.NON_ZERO / avg / 1e6);
+            const double gbs = 6 * 4 * (matrix.NON_ZERO / avg / 1e6);
+            cout << "|---------->[" << kernels[i].name << "]=> ";
+            for (u32 j = 0; j < 40 - kernels[i].name.size(); j++)
+                cout << " ";
+            cout << "[" << avg0 / avg << "x] " << avg << "ms (" << gflops << " Gflops " << gbs << " Gbs)" << endl;
         }
-        cout << endl;
+        else if (sum_gpu_times[i] == 0.0)
+        {
+            cout << "|---------->[" << kernels[i].name << "]=> not runned" << endl;
+        }
+        else
+        {
+            cout << "|---------->[" << kernels[i].name << "]=> failed" << endl;
+        }
     }
+    cout << endl;
+
 }

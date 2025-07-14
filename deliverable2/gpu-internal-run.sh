@@ -1,26 +1,22 @@
 #!/bin/bash
 # COMPILE
-echo 'COMPILING'
+echo -e "\nCOMPILING"
 module load CUDA/12.5 || exit;
 make normal || exit;
 
-# RUN
-echo 'QUEUEING JOB'
-rm -f result.err;
-rm -f finished.out;
+# Pre run
+mkdir -p output || exit;
+rm -f output/result.err output/result.out output/finished.out output/partial.csv;
+
+# QUEUE
+echo -e "\nQUEUED JOB (may take some time to be started)"
 sbatch gpu-run.sbatch $1 >/dev/null || exit;
-echo 'QUEUED JOB (may take some time to be started)'
 
 # WAIT JOB START
-until [ -e ./result.err ]; do printf .; sleep 1; done;
-echo
+until [ -e ./output/result.err ]; do printf .; sleep 1; done;
 
 # WAIT JOB FINISH
-echo 'JOB STARTED (may take some time to finish)';
-until [ -e ./finished.out ]; do printf .; sleep 1; done;
-echo
+echo -e "\nJOB STARTED REMOTELY, may take very long to finish (depending on matrix size)"
+until [ -e ./output/finished.out ]; do printf .; sleep 1; done;
+echo;
 
-# PRINT RESULTS
-cat ./result.err;
-echo ###################################################
-cat ./result.out

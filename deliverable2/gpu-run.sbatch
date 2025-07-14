@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=my_job
-#SBATCH --output=result.out
-#SBATCH --error=result.err
+#SBATCH --output=output/result.out
+#SBATCH --error=output/result.err
 #SBATCH --partition=edu-short
 #SBATCH --nodes=1
 
@@ -10,4 +10,4 @@
 #SBATCH --cpus-per-task=1
 
 ./build/main $1
-touch finished.out
+touch output/finished.out
