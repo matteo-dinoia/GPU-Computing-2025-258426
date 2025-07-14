@@ -14,5 +14,7 @@ build/
 *.err
 *.out
 
-# Reports
+# Reports & results
 *.ncu-rep
+*.log
+
