@@ -17,4 +17,4 @@ build/
 # Reports & results
 *.ncu-rep
 *.log
-
+output/
