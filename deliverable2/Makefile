@@ -38,10 +38,10 @@ build/mtx_to_bmtx: distributed_mmio/src/mtx_to_bmtx.cpp build/dmmio_mmio.o build
 build/mtx_to_sbmtx: distributed_mmio/src/mtx_to_sbmtx.cpp build/dmmio_mmio.o build/dmmio_utils.o Makefile | build
 	g++ $(DIST_MMIO_FLAGS) $< build/dmmio_mmio.o build/dmmio_utils.o -o $@
 
-build/dmmio_mmio.o: $(DIST_MMIO)/src/mmio.cpp
+build/dmmio_mmio.o: $(DIST_MMIO)/src/mmio.cpp | build
 	g++ $(DIST_MMIO_FLAGS) -c $< -o $@
 
-build/dmmio_utils.o: $(DIST_MMIO)/src/mmio_utils.cpp
+build/dmmio_utils.o: $(DIST_MMIO)/src/mmio_utils.cpp | build
 	g++ $(DIST_MMIO_FLAGS) -c $< -o $@
 
 
