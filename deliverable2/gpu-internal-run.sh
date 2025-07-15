@@ -1,4 +1,6 @@
 #!/bin/bash
+# Always run this script from the root of the repo
+
 # COMPILE
 echo -e "\nCOMPILING"
 module load CUDA/12.5 || exit;

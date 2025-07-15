@@ -1,4 +1,6 @@
 #!/usr/bin/bash
+# Always run this script from the root of the repo
+
 echo "COMPILING";
 make normal || exit;
 

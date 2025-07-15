@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+# Always run this script from the root of the repo
 # require "rsync"
 
 # change to your own if any is needed
