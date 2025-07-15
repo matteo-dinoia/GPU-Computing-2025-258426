@@ -5,9 +5,8 @@
 SSH_FLAG="-i ~/.ssh/cluster"
 # change to own
 REMOTE="matteo.dinoia@baldo.disi.unitn.it"
-# change name to free folder you can use
-DEST="deliverable2"
 
+DEST="matteo.dinoia_deliverable2"
 INTERNAL_RUNNER="gpu-internal-run.sh"
 TO_COPY="${INTERNAL_RUNNER} gpu-run.sbatch Makefile src distributed_mmio datasets profile.sh"
 
