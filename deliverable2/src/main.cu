@@ -9,7 +9,7 @@
 
 using std::cout, std::endl;
 
-int timed_main(const char*);
+int timed_main(const char*, const char*);
 
 
 int main(const int argc, char** argv)
@@ -19,8 +19,8 @@ int main(const int argc, char** argv)
     TIMER_DEF(1);
 
     TIMER_START(1);
-    if (argc >= 2)
-        ret = timed_main(argv[1]);
+    if (argc >= 3)
+        ret = timed_main(argv[1], argv[2]);
     else
         cout << "FATAL: require filename argument" << endl;
     TIMER_STOP(1);
@@ -30,7 +30,7 @@ int main(const int argc, char** argv)
 }
 
 // Matrix is inverted so that is ordered by row
-int timed_main(const char* input_file)
+int timed_main(const char* input_filename, const char* output_csv_filename)
 {
     cout << "\n* Started" << endl;
     TIMER_DEF(0);
@@ -48,20 +48,14 @@ int timed_main(const char* input_file)
 
     // Reading matrix data
     TIMER_START(0);
-    COO_local<MI, MV>* coo = Distr_MMIO_sorted_COO_local_read<MI, MV>(input_file, false);
+    COO_local<MI, MV>* coo = Distr_MMIO_sorted_COO_local_read<MI, MV>(input_filename, false);
     if (coo == nullptr)
     {
-        printf("Failed to import graph from file [%s]\n", input_file);
+        printf("Failed to import graph from file [%s]\n", input_filename);
         return -1;
     }
     TIMER_STOP(0);
     cout << "* Read data (" << coo->nrows << " " << coo->ncols << " " << coo->nnz << ")" << endl;
-
-    // if (coo->nnz < 50)
-    // {
-    //     for (u32 i = 0; i < coo->nnz; i++)
-    //         cout << coo->row[i] << " " << coo->col[i] << " " << (coo->val ? coo->val[i] : 1) << endl;
-    // }
 
     // Alloc memory
     TIMER_START(1);
@@ -101,7 +95,7 @@ int timed_main(const char* input_file)
     cout << "* Starting with nz=" << matrix.NON_ZERO << " cols=" << matrix.COLS << " rows=" << matrix.ROWS << "\n"
         << endl;
     TIMER_START(4);
-    execution(matrix, vec, res, res_control);
+    execution(matrix, vec, res, res_control, output_csv_filename);
     TIMER_STOP(4);
     cout << "* Terminated execution" << endl;
 

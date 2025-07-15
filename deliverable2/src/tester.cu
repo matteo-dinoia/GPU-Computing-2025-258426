@@ -61,10 +61,10 @@ inline std::pair<float, float> test_kernel(const SmpvKernel* kernel, const GpuCo
     return std::make_pair(time, total_time);
 }
 
-void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_control)
+void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_control, const char* output_csv_filename)
 {
     std::ofstream csv;
-    csv.open("output/partial.csv");
+    csv.open(output_csv_filename);
 
     int cycle;
 
