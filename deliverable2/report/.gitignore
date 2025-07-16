@@ -1,0 +1,12 @@
+# output
+*.aux
+*.bbl
+*.blg
+*.log
+*.gz
+*.bib
+
+# Tmp before output finalized
+*.pdf
+data_images/
+model_images/
