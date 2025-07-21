@@ -19,6 +19,13 @@ make normal || exit;
 echo -e "\nCOPYING FILES"
 rsync -e "ssh $SSH_FLAG" -aup --delete --progress ${TO_COPY} ${REMOTE}:${DEST}/  || exit;
 
+# Exit if no arguments
+if [ $# -eq 0 ]; then
+    echo -e "\nINFO: No arguments supplied, only synced files (please insert dataset's paths)"
+    exit;
+fi
+
+
 # EXECUTE IT
 COMMAND="cd ${DEST}/ && ./${INTERNAL_RUNNER} $@"
 ssh ${SSH_FLAG} matteo.dinoia@baldo.disi.unitn.it ${COMMAND}
