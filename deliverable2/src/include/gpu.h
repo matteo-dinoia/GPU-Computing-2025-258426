@@ -15,8 +15,10 @@
 #define NUM_BANKS 16
 #define LOG_NUM_BANKS 4
 #define CONFLICT_FREE_OFFSET(n) ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS))
-// Parameter for loop unroll
-#define HARDCODED_WARP_SIZE 32
+// Hardcoded value for performance
+#define WARP_SIZE 32
+#define DIV_MASK_WARP_SIZE 31
+#define LOG_WARP_SIZE 5
 
 // Types definitions
 typedef void (*KernelFunc)(const MI*, const MI*, const MV*, const MV*, MV*, MI);

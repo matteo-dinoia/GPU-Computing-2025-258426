@@ -57,9 +57,10 @@ __global__ void kernel_warp_jump(const MI* x, const MI* y, const MV* val, const 
     const MI per_thread = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x);
     const MI tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    const MI wrap_id = tid / warpSize;
-    const MI start = wrap_id * (per_thread * warpSize) + (tid - wrap_id * warpSize);
-    const MI incr = warpSize;
+    const MI wrap_id = tid >> LOG_WARP_SIZE;
+    const MI start = wrap_id * (per_thread << LOG_WARP_SIZE) + (tid - wrap_id << LOG_WARP_SIZE);
+    // ReSharper disable once CppTooWideScope
+    constexpr MI incr = WARP_SIZE;
 
     for (MI i = 0; i < per_thread; i++)
     {
@@ -142,9 +143,7 @@ __global__ void kernel_prefix_sum_multiple_read(const MI* x, const MI* y, const 
     for (int i = 0; i < READ_FOR_THREAD; i++)
     {
         const MI idx = threadIdx.x + i * blockDim.x;
-        if (base_block + idx + 1 > NON_ZERO)
-        {
-        }
+        if (base_block + idx + 1 > NON_ZERO);
         else if (idx + 1 == blockDim.x || base_block + idx + 1 == NON_ZERO)
         {
             atomicAdd(&res[y[base_block + idx]], prefix[idx]);
@@ -173,10 +172,6 @@ __global__ void kernel_prefix_sum_32_max(const MI* x, const MI* y, const MV* val
     prefix[threadIdx.x] = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
     __syncthreads();
 
-    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix[threadIdx.x], x[tid], y[tid], val[tid], vec[x[tid]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Partial prefix sum
     for (MI s = 1; s <= blockDim.x >> 1; s <<= 1)
     {
@@ -186,14 +181,8 @@ __global__ void kernel_prefix_sum_32_max(const MI* x, const MI* y, const MV* val
         __syncthreads();
     }
 
-    // printf("SUM %d %f (%d %d %f)\n", threadIdx.x, prefix[threadIdx.x], x[tid], y[tid], val[tid]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Edge detection and memory write
-    if (tid + 1 > NON_ZERO)
-    {
-    }
+    if (tid + 1 > NON_ZERO);
     else if (threadIdx.x + 1 == blockDim.x || tid + 1 == NON_ZERO)
     {
         atomicAdd(&res[y[tid]], prefix[threadIdx.x]);
@@ -215,32 +204,22 @@ __global__ void kernel_prefix_sum_warp(const MI* x, const MI* y, const MV* val, 
 {
     const MI base_block = blockIdx.x * blockDim.x;
     const MI tid = base_block + threadIdx.x;
-    const MI tid_warp = threadIdx.x & (warpSize - 1);
+    const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
 
     // Multiplication
     MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
 
-    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Partial prefix sum
-    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s < WARP_SIZE; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         if (tid_warp >= s)
             prefix_i += to_add;
-        // printf("SUM %d %f\n", threadIdx.x, prefix_i);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
     }
-
 
     // Edge detection and memory write
-    if (tid + 1 > NON_ZERO)
-    {
-    }
-    else if (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO)
+    if (tid + 1 > NON_ZERO);
+    else if (tid_warp + 1 == WARP_SIZE || tid + 1 == NON_ZERO)
     {
         atomicAdd(&res[y[tid]], prefix_i);
     }
@@ -261,18 +240,14 @@ __global__ void kernel_prefix_sum_s_warp(const MI* x, const MI* y, const MV* val
 {
     const MI base_block = blockIdx.x * blockDim.x;
     const MI tid = base_block + threadIdx.x;
-    const MI tid_warp = threadIdx.x & (warpSize - 1);
+    const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
 
     // Multiplication
     MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
     const MI yi = tid < NON_ZERO ? y[tid] : 0; // 0 is ok
 
-    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Partial prefix sum
-    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s < WARP_SIZE; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         const MI yi2 = __shfl_up_sync(0xffffffff, yi, s);
@@ -280,17 +255,10 @@ __global__ void kernel_prefix_sum_s_warp(const MI* x, const MI* y, const MV* val
             prefix_i += to_add;
     }
 
-    // printf("SUM %d %f\n", threadIdx.x, prefix_i);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
-
     // Edge detection and memory write
     const MI y_next = __shfl_down_sync(0xffffffff, yi, 1);
-    if (tid + 1 > NON_ZERO)
-    {
-    }
-    else if (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO || yi < y_next)
+    if (tid + 1 > NON_ZERO);
+    else if (tid_warp + 1 == WARP_SIZE || tid + 1 == NON_ZERO || yi < y_next)
     {
         atomicAdd(&res[yi], prefix_i);
     }
@@ -306,19 +274,16 @@ __global__ void kernel_prefix_sum_s_warp_jump_block(const MI* x, const MI* y, co
     const MI cell_per_block = CEIL_DIV(NON_ZERO, gridDim.x * blockDim.x) * blockDim.x;
     const MI start = blockIdx.x * cell_per_block + threadIdx.x;
     const MI end = MIN(NON_ZERO, (blockIdx.x + 1) * cell_per_block);
+
     for (MI tid = start; tid < end; tid += blockDim.x)
     {
-        const MI tid_warp = threadIdx.x & (warpSize - 1);
+        const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
         // Multiplication
         MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
         const MI yi = tid < NON_ZERO ? y[tid] : 0; // 0 is ok
 
-        // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
-
         // Partial prefix sum
-        for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+        for (MI s = 1; s < WARP_SIZE; s <<= 1)
         {
             const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
             const MI yi2 = __shfl_up_sync(0xffffffff, yi, s);
@@ -326,13 +291,9 @@ __global__ void kernel_prefix_sum_s_warp_jump_block(const MI* x, const MI* y, co
                 prefix_i += to_add;
         }
 
-        // printf("SUM %d %f\n", threadIdx.x, prefix_i);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
-
         // Edge detection and memory write
         const MI y_next = __shfl_down_sync(0xffffffff, yi, 1);
-        if (tid < NON_ZERO && (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO || yi < y_next))
+        if (tid < NON_ZERO && (tid_warp + 1 == WARP_SIZE || tid + 1 == NON_ZERO || yi < y_next))
             atomicAdd(&res[yi], prefix_i);
     }
 }
@@ -352,18 +313,14 @@ __global__ void kernel_prefix_sum_s_warp_jump_block_unroll(const MI* x, const MI
 
     for (MI tid = start; tid < end; tid += blockDim.x)
     {
-        const MI tid_warp = threadIdx.x & (HARDCODED_WARP_SIZE - 1);
+        const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
         // Multiplication
         MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
         const MI yi = tid < NON_ZERO ? y[tid] : 0; // 0 is ok
 
-        // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
-
         // Partial prefix sum
 #pragma unroll
-        for (MI s = 1; s < HARDCODED_WARP_SIZE; s <<= 1)
+        for (MI s = 1; s < WARP_SIZE; s <<= 1)
         {
             const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
             const MI yi2 = __shfl_up_sync(0xffffffff, yi, s);
@@ -371,13 +328,9 @@ __global__ void kernel_prefix_sum_s_warp_jump_block_unroll(const MI* x, const MI
                 prefix_i += to_add;
         }
 
-        // printf("SUM %d %f\n", threadIdx.x, prefix_i);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
-
         // Edge detection and memory write
         const MI y_next = __shfl_down_sync(0xffffffff, yi, 1);
-        if (tid < NON_ZERO && (tid_warp == HARDCODED_WARP_SIZE - 1 || tid + 1 == NON_ZERO || yi < y_next))
+        if (tid < NON_ZERO && (tid_warp + 1 == WARP_SIZE || tid + 1 == NON_ZERO || yi < y_next))
             atomicAdd(&res[yi], prefix_i);
     }
 }
@@ -391,32 +344,23 @@ __global__ void kernel_prefix_sum_warp_2x(const MI* x, const MI* y, const MV* va
 {
     const MI base_block = blockIdx.x * blockDim.x;
     const MI tid = base_block + threadIdx.x;
-    const MI tid_warp = threadIdx.x & (warpSize - 1);
+    const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
 
     // Multiplication
     MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
 
-    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Partial prefix sum
-    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s < WARP_SIZE; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         if (tid_warp >= s)
             prefix_i += to_add;
-        // printf("SUM %d %f\n", threadIdx.x, prefix_i);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
     }
 
 
     // Edge detection and memory write
-    if (tid + 1 > NON_ZERO)
-    {
-    }
-    else if (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO)
+    if (tid + 1 > NON_ZERO);
+    else if (tid_warp + 1 == WARP_SIZE || tid + 1 == NON_ZERO)
     {
         atomicAdd(&res[y[tid]], prefix_i);
     }
@@ -439,43 +383,30 @@ __global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV
     extern __shared__ MV last_elems[]; // NOLINT(*-redundant-declaration)
     const MI base_block = blockIdx.x * blockDim.x;
     const MI tid = base_block + threadIdx.x;
-    const MI tid_warp = threadIdx.x & (warpSize - 1);
-    const MI id_warp = threadIdx.x >> 5;
-    // HARDCODED WARP SIZE FOR PERFORMANCE
+    const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
+    const MI id_warp = threadIdx.x >> LOG_WARP_SIZE;
 
     // Multiplication
     MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
 
-    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Partial prefix sum
-    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s < WARP_SIZE; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         if (tid_warp >= s)
             prefix_i += to_add;
     }
 
-    // printf("PARTIAL_SUM %d %f\n", threadIdx.x, prefix_i);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Put sum in first element of each warp
-    if (tid_warp + 1 == warpSize)
-    {
+    if (tid_warp + 1 == WARP_SIZE)
         last_elems[id_warp] = prefix_i;
-        // printf("FIRSTS %d %f\n", id_warp, prefix_i);
-        // if (id_warp == 0)
-        //     printf("\n");
-    }
+
 
     __syncthreads();
-    if (threadIdx.x < 32)
+    if (threadIdx.x < WARP_SIZE)
     {
-        MV last_el_of_warp = tid_warp * warpSize < NON_ZERO ? last_elems[tid_warp] : 0;
-        for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+        MV last_el_of_warp = tid_warp << LOG_WARP_SIZE < NON_ZERO ? last_elems[tid_warp] : 0;
+        for (MI s = 1; s < WARP_SIZE; s <<= 1)
         {
             const MV to_add = __shfl_up_sync(0xffffffff, last_el_of_warp, s);
             if (tid_warp >= s)
@@ -489,14 +420,8 @@ __global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV
     const MV prefix_base = id_warp > 0 ? last_elems[id_warp - 1] : 0;
     prefix_i += prefix_base;
 
-    // printf("TOTOAL_SUM %d %f\n", threadIdx.x, prefix_i);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Edge detection and memory write
-    if (tid + 1 > NON_ZERO)
-    {
-    }
+    if (tid + 1 > NON_ZERO);
     else if (threadIdx.x + 1 == blockDim.x || tid + 1 == NON_ZERO)
     {
         atomicAdd(&res[y[tid]], prefix_i);
@@ -512,27 +437,21 @@ __global__ void kernel_prefix_sum_warp_merged(const MI* x, const MI* y, const MV
 // Compute multiplication
 // Compute prefix sum (only fist step)
 // Then using edges atomically push to global memory
-// TODO FIX
 __global__ void kernel_prefix_sum_s_warp_merged(const MI* x, const MI* y, const MV* val, const MV* vec, MV* res,
                                                 const MI NON_ZERO)
 {
     extern __shared__ MV last_elems[]; // NOLINT(*-redundant-declaration)
     const MI base_block = blockIdx.x * blockDim.x;
     const MI tid = base_block + threadIdx.x;
-    const MI tid_warp = threadIdx.x & (warpSize - 1);
-    const MI id_warp = threadIdx.x >> 5;
-    // HARDCODED WARP SIZE FOR PERFORMANCE
+    const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
+    const MI id_warp = threadIdx.x >> LOG_WARP_SIZE;
 
     // Multiplication
     MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
     const MI yi = tid < NON_ZERO ? y[tid] : 0; // 0 is ok
 
-    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix_i, x[tid], y[tid], val[tid], vec[x[tid]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Partial prefix sum
-    for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+    for (MI s = 1; s < WARP_SIZE; s <<= 1)
     {
         const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
         const MI yi2 = __shfl_up_sync(0xffffffff, yi, s);
@@ -545,21 +464,16 @@ __global__ void kernel_prefix_sum_s_warp_merged(const MI* x, const MI* y, const 
     //     printf("\n");
 
     // Put sum in first element of each warp
-    if (tid_warp + 1 == warpSize)
-    {
+    if (tid_warp + 1 == WARP_SIZE)
         last_elems[id_warp] = prefix_i;
-        // printf("FIRSTS %d %f\n", id_warp, prefix_i);
-        // if (id_warp == 0)
-        //     printf("\n");
-    }
 
     __syncthreads();
-    if (threadIdx.x < 32)
+    if (threadIdx.x < WARP_SIZE)
     {
-        MV last_el_of_warp = tid_warp * warpSize < NON_ZERO ? last_elems[tid_warp] : 0;
-        const MI y_start = tid < NON_ZERO ? y[tid_warp * warpSize] : 0;
-        const MI y_end = tid < NON_ZERO ? y[(tid_warp + 1) * warpSize - 1] : 0;
-        for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+        MV last_el_of_warp = tid_warp << LOG_WARP_SIZE < NON_ZERO ? last_elems[tid_warp] : 0;
+        const MI y_start = tid < NON_ZERO ? y[tid_warp << LOG_WARP_SIZE] : 0;
+        const MI y_end = tid < NON_ZERO ? y[(tid_warp + 1) << LOG_WARP_SIZE - 1] : 0;
+        for (MI s = 1; s < WARP_SIZE; s <<= 1)
         {
             const MV to_add = __shfl_up_sync(0xffffffff, last_el_of_warp, s);
             const MI y_end2 = __shfl_up_sync(0xffffffff, y_end, s);
@@ -567,9 +481,6 @@ __global__ void kernel_prefix_sum_s_warp_merged(const MI* x, const MI* y, const 
                 last_el_of_warp += to_add;
         }
         last_elems[tid_warp] = last_el_of_warp;
-        // printf("NEW FIRSTS %d %f\n", threadIdx.x, last_el_of_warp);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
     }
     __syncthreads();
 
@@ -577,14 +488,8 @@ __global__ void kernel_prefix_sum_s_warp_merged(const MI* x, const MI* y, const 
     const MV prefix_base = id_warp > 0 ? last_elems[id_warp - 1] : 0;
     prefix_i += prefix_base;
 
-    // printf("TOTAL_SUM %d %f\n", threadIdx.x, prefix_i);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Edge detection and memory write
-    if (tid + 1 > NON_ZERO)
-    {
-    }
+    if (tid + 1 > NON_ZERO);
     else if (threadIdx.x + 1 == blockDim.x || tid + 1 == NON_ZERO || yi < y[tid + 1])
     {
         atomicAdd(&res[yi], prefix_i);
@@ -605,35 +510,22 @@ __global__ void kernel_prefix_sum_warp_with_block_jump(const MI* x, const MI* y,
 
     for (MI tid = start; tid < end; tid += blockDim.x)
     {
-        const MI tid_warp = threadIdx.x & (warpSize - 1);
+        const MI tid_warp = threadIdx.x & DIV_MASK_WARP_SIZE;
 
         // Multiplication
         MV prefix_i = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
 
-        // printf("MUL %d|%d=%d  %f (%d %d %f -> %f)\n", blockIdx.x, threadIdx.x, tid, prefix_i, x[tid], y[tid],
-        // val[tid],
-        //        vec[x[tid]]);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
-
         // Partial prefix sum
-        for (MI s = 1; s <= warpSize >> 1; s <<= 1)
+        for (MI s = 1; s < WARP_SIZE; s <<= 1)
         {
             const MV to_add = __shfl_up_sync(0xffffffff, prefix_i, s);
             if (tid_warp >= s)
                 prefix_i += to_add;
         }
 
-        // printf("MUL %d|%d=%d %f\n", blockIdx.x, threadIdx.x, tid, prefix_i);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
-
-
         // Edge detection and memory write
-        if (tid + 1 > NON_ZERO)
-        {
-        }
-        else if (tid_warp + 1 == warpSize || tid + 1 == NON_ZERO)
+        if (tid + 1 > NON_ZERO);
+        else if (tid_warp + 1 == WARP_SIZE || tid + 1 == NON_ZERO)
         {
             atomicAdd(&res[y[tid]], prefix_i);
         }
@@ -661,11 +553,6 @@ __global__ void kernel_prefix_sum_unlimited(const MI* x, const MI* y, const MV* 
     prefix[pout * blockDim.x + threadIdx.x] = tid < NON_ZERO ? val[tid] * vec[x[tid]] : 0;
     __syncthreads();
 
-    // printf("MUL %d %f (%d %d %f -> %f)\n", threadIdx.x, prefix[pout * blockDim.x + threadIdx.x], x[tid], y[tid],
-    //        val[tid], vec[x[tid]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Partial prefix sum
     for (MI s = 1; s <= blockDim.x >> 1; s <<= 1)
     {
@@ -679,18 +566,11 @@ __global__ void kernel_prefix_sum_unlimited(const MI* x, const MI* y, const MV* 
         else
             prefix[pout * blockDim.x + threadIdx.x] = prefix[pin * blockDim.x + threadIdx.x];
         __syncthreads();
-
-        // printf("SUM %d %f old %f (%d %d %f)\n", threadIdx.x, prefix[pout * blockDim.x + threadIdx.x],
-        //        prefix[pin * blockDim.x + threadIdx.x], x[tid], y[tid], val[tid]);
-        // if (threadIdx.x == 0)
-        //     printf("\n");
     }
 
 
     // Edge detection and memory write
-    if (tid + 1 > NON_ZERO)
-    {
-    }
+    if (tid + 1 > NON_ZERO);
     else if (threadIdx.x + 1 == blockDim.x || tid + 1 == NON_ZERO)
     {
         atomicAdd(&res[y[tid]], prefix[pout * blockDim.x + threadIdx.x]);
@@ -718,13 +598,6 @@ __global__ void kernel_prefix_sum_max_32_work_efficient(const MI* x, const MI* y
         ? val[base_block + in2 + 1] * vec[x[base_block + in2 + 1]]
         : 0;
     __syncthreads();
-    // printf("MUL %d %f (upper is %d %d %f -> %f)\nMUL %d %f (upper is %d %d %f -> %f)\n", base_block + in1,
-    // prefix[in1],
-    //        x[base_block + in1], y[base_block + in1], val[base_block + in1], vec[x[base_block + in1]], base_block +
-    //        in2, prefix[in2], x[base_block + in2], y[base_block + in2], val[base_block + in2], vec[x[base_block +
-    //        in2]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // Partial prefix sum
     // build sum in place up the tree
@@ -740,18 +613,11 @@ __global__ void kernel_prefix_sum_max_32_work_efficient(const MI* x, const MI* y
         offset <<= 1;
         __syncthreads();
     }
-    // printf("P1 %d %f\nP1 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // clear the last element
     if (thid == 0)
         prefix[shared_size - 1] = val[base_block] * vec[x[base_block]];
     __syncthreads();
-
-    // printf("P1.5 %d %f\nP1.5 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // traverse down tree & build scan
     for (MI d = 1; d < shared_size; d <<= 1)
@@ -769,17 +635,11 @@ __global__ void kernel_prefix_sum_max_32_work_efficient(const MI* x, const MI* y
         __syncthreads();
     }
 
-    // printf("P2 %d %f\nP2 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Edge detection and memory write
     for (MI el = 2 * thid; el < 2 * (thid + 1); el++)
     {
         const MI tid = base_block + el;
-        if (tid + 1 > NON_ZERO)
-        {
-        }
+        if (tid + 1 > NON_ZERO);
         else if (el + 1 == shared_size || tid + 1 == NON_ZERO)
         {
             atomicAdd(&res[y[tid]], prefix[el]);
@@ -811,13 +671,6 @@ __global__ void kernel_prefix_sum_we_32_conflict_free(const MI* x, const MI* y, 
         ? val[base_block + in2 + 1] * vec[x[base_block + in2 + 1]]
         : 0;
     __syncthreads();
-    // printf("MUL %d %f (upper is %d %d %f -> %f)\nMUL %d %f (upper is %d %d %f -> %f)\n", base_block + in1,
-    // prefix[in1],
-    //        x[base_block + in1], y[base_block + in1], val[base_block + in1], vec[x[base_block + in1]], base_block +
-    //        in2, prefix[in2], x[base_block + in2], y[base_block + in2], val[base_block + in2], vec[x[base_block +
-    //        in2]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // Partial prefix sum
     // build sum in place up the tree
@@ -836,18 +689,11 @@ __global__ void kernel_prefix_sum_we_32_conflict_free(const MI* x, const MI* y, 
         offset <<= 1;
         __syncthreads();
     }
-    // printf("P1 %d %f\nP1 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // clear the last element
     if (thid == 0)
         prefix[shared_size - 1] = val[base_block] * vec[x[base_block]];
     __syncthreads();
-
-    // printf("P1.5 %d %f\nP1.5 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // traverse down tree & build scan
     for (MI d = 1; d < shared_size; d <<= 1)
@@ -867,18 +713,12 @@ __global__ void kernel_prefix_sum_we_32_conflict_free(const MI* x, const MI* y, 
         __syncthreads();
     }
 
-    // printf("P2 %d %f\nP2 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Edge detection and memory write
     for (MI i = 2 * thid; i < 2 * (thid + 1); i++)
     {
         const MI el = i + CONFLICT_FREE_OFFSET(i);
         const MI tid = base_block + el;
-        if (tid + 1 > NON_ZERO)
-        {
-        }
+        if (tid + 1 > NON_ZERO);
         else if (el + 1 == shared_size || tid + 1 == NON_ZERO)
         {
             atomicAdd(&res[y[tid]], prefix[el]);
@@ -912,13 +752,6 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const MI* x, const 
         ? val[base_block + in2 + 1] * vec[x[base_block + in2 + 1]]
         : 0;
     __syncthreads();
-    // printf("MUL %d %f (upper is %d %d %f -> %f)\nMUL %d %f (upper is %d %d %f -> %f)\n", base_block + in1,
-    // prefix[in1],
-    //        x[base_block + in1], y[base_block + in1], val[base_block + in1], vec[x[base_block + in1]], base_block +
-    //        in2, prefix[in2], x[base_block + in2], y[base_block + in2], val[base_block + in2], vec[x[base_block +
-    //        in2]]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // Partial prefix sum
     // build sum in place up the tree
@@ -943,18 +776,11 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const MI* x, const 
         offset <<= 1;
         __syncthreads();
     }
-    // printf("P1 %d %f\nP1 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // clear the last element
     if (thid == 0)
         prefix[pout * shared_size + shared_size - 1] = val[base_block] * vec[x[base_block]];
     __syncthreads();
-
-    // printf("P1.5 %d %f\nP1.5 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
 
     // traverse down tree & build scan
     for (MI d = 1; d < shared_size; d <<= 1)
@@ -980,18 +806,12 @@ __global__ void kernel_prefix_sum_we_unlimited_conflict_free(const MI* x, const 
         __syncthreads();
     }
 
-    // printf("P2 %d %f\nP2 %d %f\n", base_block + in1, prefix[in1], base_block + in2, prefix[in2]);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Edge detection and memory write
     for (MI i = 2 * thid; i < 2 * (thid + 1); i++)
     {
         const MI el = i + CONFLICT_FREE_OFFSET(i);
         const MI tid = base_block + el;
-        if (tid + 1 > NON_ZERO)
-        {
-        }
+        if (tid + 1 > NON_ZERO);
         else if (el + 1 == shared_size || tid + 1 == NON_ZERO)
         {
             atomicAdd(&res[y[tid]], prefix[pout * shared_size + el]);
