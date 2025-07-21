@@ -22,11 +22,11 @@ double variance(const double *times, const double average, const int N) {
     return variance;
 }
 
-void print_time_data(const char *name, const double *times, const int N, const int OP) {
+void print_time_data(const char *name, const double *times, const int CYCLES, const int OP) {
     double mean = average(times, N);
     double var = variance(times, mean, N);
 
     const double flops1 = OP / mean;
     printf("MY IMP TIME OF '%s' avarage %fms (%f MFLOP/S) over %d size and %d tests [with var = %e]\n",
-           name, mean * 1e3, flops1 / 1e6, OP, N, var);
+           name, mean * 1e3, flops1 / 1e6, OP, CYCLES, var);
 }

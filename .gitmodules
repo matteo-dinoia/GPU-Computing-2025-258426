@@ -1,3 +1,6 @@
 [submodule "deliverable2/distributed_mmio"]
 	path = deliverable2/distributed_mmio
 	url = https://github.com/matteo-dinoia/distributed_mmio
+[submodule "deliverable1/distributed_mmio"]
+	path = deliverable1/distributed_mmio
+	url = https://github.com/matteo-dinoia/distributed_mmio
