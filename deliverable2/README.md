@@ -4,7 +4,7 @@ It can be manually run using the executable but it is easier to just use the hel
 ```bash
 # Go in the root of the second deliverable and run
 # The <dataset-to-use> is a path (even relative) to any file *.mtx *.bmtx *.sbmtx
-$ ./locale-run.sh <dataset-to-use>
+$ ./scripts/locale-run.sh <dataset-to-use>
 ```
 
 ## Remote compilation & execution (eg. cluster)
@@ -23,7 +23,7 @@ REMOTE="<change-user-name>@<change-remote-name-if-needed>"
 Then it can be run as such:
 ```bash
 # Go in the root of the second deliverable and run
-$ ./remote-run.sh <dataset-to-use>
+$ ./scripts/remote-run.sh <dataset-to-use>
 ```
 
 ## Matrix conversion
@@ -32,7 +32,7 @@ As some of the kernel assume that the COO is sorted, it may be useful, when test
 ### Small matrixes
 To convert a matrix to a compact representation we can use (which is when the matrix is not too big)
 ```bast
-./convert-matrix.sh <path-matrix-mtx-format>
+./scripts/convert-matrix.sh <path-matrix-mtx-format>
 ```
 
 ### Big matrixes
@@ -42,6 +42,6 @@ This should be done with each huge matrix, else the job may timeout on the clust
 
 Also notice that this WILL TAKE A LONG TIME (it is recommended to disable any power saving feature).
 ```bast
-./convert-huge-matrix-to-sorted.sh <path-matrix-mtx-or-btmx-format>
+./scripts/convert-huge-matrix-to-sorted.sh <path-matrix-mtx-or-btmx-format>
 ```
 The converted matrix may be larger than the original in this case

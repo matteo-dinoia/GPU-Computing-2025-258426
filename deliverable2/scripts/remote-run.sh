@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# Always run this script from the root of the repo
+# Always run this script from the root of the deliverable2
 # require "rsync"
 
 # change to your own if any is needed
@@ -8,8 +8,8 @@ SSH_FLAG="-i ~/.ssh/cluster"
 REMOTE="matteo.dinoia@baldo.disi.unitn.it"
 
 DEST="matteo.dinoia_deliverable2"
-INTERNAL_RUNNER="gpu-internal-run.sh"
-TO_COPY="${INTERNAL_RUNNER} Makefile src distributed_mmio datasets profile.sh"
+INTERNAL_RUNNER="scripts/gpu-internal-run.sh"
+TO_COPY=" Makefile src distributed_mmio datasets scripts"
 
 # TEST MAKING LOCALLY BEFORE PUSHING
 echo "TESTING THE PROGRAM COMPILE LOCALLY"
