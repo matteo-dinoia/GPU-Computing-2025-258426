@@ -69,7 +69,8 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
     int cycle;
 
     // Kernel used in the testing
-    const std::vector kernels = {baseline, block_jump, warp_jump, prefix_sum_unlimited, prefix_sum_32_max,
+    const std::vector kernels = {baseline, full_strided, full_jump, block_jump, warp_jump,
+                                 prefix_sum_unlimited, prefix_sum_32_max,
                                  prefix_sum_max_32_work_efficient,
                                  prefix_sum_we_32_conflict_free,
                                  prefix_sum_we_unlimited_conflict_free,

@@ -21,8 +21,10 @@ int main(const int argc, char** argv)
     TIMER_START(1);
     if (argc >= 3)
         ret = timed_main(argv[1], argv[2]);
+    else if (argc >= 2)
+        ret = timed_main(argv[1], "/dev/null");
     else
-        cout << "FATAL: require filename argument" << endl;
+        cout << "FATAL: require at least datasets filename argument" << endl;
     TIMER_STOP(1);
 
     cout << "TOTAL PROGRAM TIME: " << TIMER_ELAPSED_MS(1) << "ms" << endl;
@@ -83,6 +85,14 @@ int timed_main(const char* input_filename, const char* output_csv_filename)
         cudaMemset(matrix.vals, 1, matrix.NON_ZERO * sizeof(MV));
     TIMER_STOP(2);
     cout << "* Copied COO to GPU memory" << endl;
+
+    // Check errors
+    if (cudaGetLastError() != cudaSuccess)
+    {
+        cout << "FATAL: could not initialize memory (possibly because no GPU)" << endl;
+        Distr_MMIO_COO_local_destroy(&coo);
+        return -1;
+    }
 
     // Generation of random vector
     TIMER_START(3);
