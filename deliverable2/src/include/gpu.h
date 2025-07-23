@@ -56,6 +56,7 @@ KERNEL_DEF(kernel_prefix_sum_s_warp_jump_block_unroll);
 KERNEL_DEF(kernel_prefix_sum_warp_2x);
 KERNEL_DEF(kernel_prefix_sum_warp_with_block_jump);
 KERNEL_DEF(kernel_prefix_sum_warp_merged);
+KERNEL_DEF(kernel_prefix_sum_s_warp_merged);
 
 
 // Define parameter getter function (with helper macro)
@@ -90,3 +91,4 @@ WRAPPER_DEF(prefix_sum_s_warp_jump_block_unroll, parameters_prefix_sum_warp_with
 WRAPPER_DEF(prefix_sum_warp_2x, parameters_prefix_sum_warp);
 WRAPPER_DEF(prefix_sum_warp_with_block_jump, parameters_prefix_sum_warp_with_block_jump);
 WRAPPER_DEF(prefix_sum_warp_merged, parameters_prefix_sum_warp_merged);
+WRAPPER_DEF(prefix_sum_s_warp_merged, parameters_prefix_sum_warp_merged);

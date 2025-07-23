@@ -459,10 +459,6 @@ __global__ void kernel_prefix_sum_s_warp_merged(const MI* x, const MI* y, const 
             prefix_i += to_add;
     }
 
-    // printf("PARTIAL_SUM %d %f\n", threadIdx.x, prefix_i);
-    // if (threadIdx.x == 0)
-    //     printf("\n");
-
     // Put sum in first element of each warp
     if (tid_warp + 1 == WARP_SIZE)
         last_elems[id_warp] = prefix_i;

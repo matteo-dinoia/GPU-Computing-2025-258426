@@ -15,8 +15,8 @@ using std::cout, std::endl, std::cerr;
 #define CYCLES 1
 #define WARMUP_CYCLES 0
 #else
-#define CYCLES 5
-#define WARMUP_CYCLES 1
+#define CYCLES 10
+#define WARMUP_CYCLES 3
 #endif
 
 // WARNING: enabling this option will produce false positive errors
@@ -76,7 +76,7 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
                                  prefix_sum_we_unlimited_conflict_free,
                                  prefix_sum_warp, prefix_sum_s_warp, prefix_sum_s_warp_jump_block,
                                  prefix_sum_s_warp_jump_block_unroll,
-                                 //prefix_sum_warp_2x,
+                                 prefix_sum_s_warp_merged,
                                  prefix_sum_warp_with_block_jump, prefix_sum_warp_merged};
 
     // Time definition
@@ -156,6 +156,9 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
             for (u32 j = 0; j < 40 - kernels[i].name.size(); j++)
                 cout << " ";
             cout << "[" << avg0 / avg << "x] " << avg << "ms (" << gflops << " Gflops " << gbs << " Gbs)" << endl;
+
+            // Reused
+            gpu_times[i] = avg0 / avg;
         }
         else if (sum_gpu_times[i] == 0.0)
         {
