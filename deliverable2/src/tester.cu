@@ -42,9 +42,9 @@ inline std::pair<float, float> test_kernel(const SmpvKernel* kernel, const GpuCo
     // Execute the kernel
     GPU_TIMER_START();
     if (shm == 0)
-        kernel->execute<<<blocks, threads>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
+        kernel->execute<<<blocks, threads>>>(matrix.xs.get(), matrix.ys.get(), matrix.vals.get(), vec, res, matrix.NON_ZERO);
     else
-        kernel->execute<<<blocks, threads, shm>>>(matrix.xs, matrix.ys, matrix.vals, vec, res, matrix.NON_ZERO);
+        kernel->execute<<<blocks, threads, shm>>>(matrix.xs.get(), matrix.ys.get(), matrix.vals.get(), vec, res, matrix.NON_ZERO);
     GPU_TIMER_STOP(&time);
     TIMER_STOP(0);
     float total_time = TIMER_ELAPSED_MS(0);
@@ -98,9 +98,9 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
         // Kernels
         for (u32 i = 0; i < kernels.size() && !failed; i++)
         {
-            auto t = test_kernel(&kernels[i], matrix, vec, i == 0 ? res_control : res);
-            gpu_times[i] = t.first;
-            total_time[i] = t.second;
+            auto [gpu, total] = test_kernel(&kernels[i], matrix, vec, i == 0 ? res_control : res);
+            gpu_times[i] = gpu;
+            total_time[i] = total;
 
             // print_min_max(res_control, matrix.ROWS);
             if (gpu_times[i] < 0)
@@ -156,9 +156,6 @@ void execution(const GpuCoo<MI, MV>& matrix, const MV* vec, MV* res, MV* res_con
             for (u32 j = 0; j < 40 - kernels[i].name.size(); j++)
                 cout << " ";
             cout << "[" << avg0 / avg << "x] " << avg << "ms (" << gflops << " Gflops " << gbs << " Gbs)" << endl;
-
-            // Reused
-            gpu_times[i] = avg0 / avg;
         }
         else if (sum_gpu_times[i] == 0.0)
         {

@@ -1,5 +1,6 @@
 #include <chrono>
 #include <iostream>
+#include <memory>
 #include <sys/time.h>
 #include "../distributed_mmio/include/mmio.h"
 #include "include/tester.h"
@@ -8,6 +9,19 @@
 #include "include/utils.h"
 
 using std::cout, std::endl;
+
+struct CooDeleter
+{
+    void operator()(COO_local<MI, MV>* x) const { Distr_MMIO_COO_local_destroy(&x); }
+};
+
+
+
+template <typename T>
+std::unique_ptr<T, CudaDeleter> newCudaMemory(const size_t lenght){
+    auto  myCudaMalloc = [](const size_t sizeBytes) { void* ptr; cudaMallocManaged(&ptr, sizeBytes); return ptr; };
+    return std::unique_ptr<T, CudaDeleter>(static_cast<T*>(myCudaMalloc(lenght * sizeof(T))));
+}
 
 int timed_main(const char*, const char*);
 
@@ -43,14 +57,11 @@ int timed_main(const char* input_filename, const char* output_csv_filename)
     TIMER_DEF(5);
 
     // Data allocation
-    GpuCoo<MI, MV> matrix = {0, 0, 0, nullptr, nullptr, nullptr};
-    MV* vec = nullptr;
-    MV* res = nullptr;
-    MV* res_control = nullptr;
+
 
     // Reading matrix data
     TIMER_START(0);
-    COO_local<MI, MV>* coo = Distr_MMIO_sorted_COO_local_read<MI, MV>(input_filename, false);
+    const auto coo = std::unique_ptr<COO_local<MI, MV>, CooDeleter>(Distr_MMIO_sorted_COO_local_read<MI, MV>(input_filename, false));
     if (coo == nullptr)
     {
         printf("Failed to import graph from file [%s]\n", input_filename);
@@ -61,28 +72,25 @@ int timed_main(const char* input_filename, const char* output_csv_filename)
 
     // Alloc memory
     TIMER_START(1);
-    matrix.NON_ZERO = coo->nnz;
-    matrix.COLS = coo->ncols;
-    matrix.ROWS = coo->nrows;
-    cudaMallocManaged(&matrix.xs, matrix.NON_ZERO * sizeof(MI));
-    cudaMallocManaged(&matrix.ys, matrix.NON_ZERO * sizeof(MI));
-    cudaMallocManaged(&matrix.vals, matrix.NON_ZERO * sizeof(MV));
+    const GpuCoo<MI, MV> matrix = {coo->nnz, coo->ncols, coo->nrows,
+        newCudaMemory<MI>(coo->nnz), newCudaMemory<MI>(coo->nnz), newCudaMemory<MV>(coo->nnz)};
+
 
     // Alloc memory for other part
-    cudaMallocManaged(&vec, matrix.COLS * sizeof(MV));
-    cudaMallocManaged(&res, matrix.ROWS * sizeof(MV));
-    cudaMallocManaged(&res_control, matrix.ROWS * sizeof(MV));
+    const auto vec = newCudaMemory<MV>(matrix.COLS);
+    const auto res = newCudaMemory<MV>(matrix.ROWS);
+    const auto res_control = newCudaMemory<MV>(matrix.ROWS);
     TIMER_STOP(1);
     cout << "* Allocated  memory" << endl;
 
     // Copy data to GPU
     TIMER_START(2);
-    cudaMemcpy(matrix.xs, coo->col, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
-    cudaMemcpy(matrix.ys, coo->row, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
+    cudaMemcpy(matrix.xs.get(), coo->col, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
+    cudaMemcpy(matrix.ys.get(), coo->row, matrix.NON_ZERO * sizeof(MI), cudaMemcpyHostToDevice);
     if (coo->val != nullptr)
-        cudaMemcpy(matrix.vals, coo->val, matrix.NON_ZERO * sizeof(MV), cudaMemcpyHostToDevice);
+        cudaMemcpy(matrix.vals.get(), coo->val, matrix.NON_ZERO * sizeof(MV), cudaMemcpyHostToDevice);
     else
-        cudaMemset(matrix.vals, 1, matrix.NON_ZERO * sizeof(MV));
+        cudaMemset(matrix.vals.get(), 1, matrix.NON_ZERO * sizeof(MV));
     TIMER_STOP(2);
     cout << "* Copied COO to GPU memory" << endl;
 
@@ -90,36 +98,23 @@ int timed_main(const char* input_filename, const char* output_csv_filename)
     if (cudaGetLastError() != cudaSuccess)
     {
         cout << "FATAL: could not initialize memory (possibly because no GPU)" << endl;
-        Distr_MMIO_COO_local_destroy(&coo);
         return -1;
     }
 
     // Generation of random vector
     TIMER_START(3);
-    randomize_dense_vec(vec, matrix.COLS);
+    randomize_dense_vec(vec.get(), matrix.COLS);
     TIMER_STOP(3);
-    print_min_max(vec, matrix.COLS);
+    print_min_max(vec.get(), matrix.COLS);
     cout << "* Randomized Vector" << endl;
 
     // Execution
     cout << "* Starting with nz=" << matrix.NON_ZERO << " cols=" << matrix.COLS << " rows=" << matrix.ROWS << "\n"
         << endl;
     TIMER_START(4);
-    execution(matrix, vec, res, res_control, output_csv_filename);
+    execution(matrix, vec.get(), res.get(), res_control.get(), output_csv_filename);
     TIMER_STOP(4);
     cout << "* Terminated execution" << endl;
-
-    // Free memory and close resources
-    TIMER_START(5);
-    cudaFree(matrix.xs);
-    cudaFree(matrix.ys);
-    cudaFree(matrix.vals);
-    cudaFree(vec);
-    cudaFree(res_control);
-    cudaFree(res);
-    Distr_MMIO_COO_local_destroy(&coo);
-    TIMER_STOP(5);
-    cout << "* Finished Deallocating\n" << endl;
 
     // Print time
     cout << "Time elapsed for reading: " << TIMER_ELAPSED_MS(0) << " ms" << endl;

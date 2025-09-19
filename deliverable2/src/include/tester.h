@@ -1,6 +1,12 @@
 #pragma once
-#include <cstdint>
+#include <memory>
+
 #include "type_alias.h"
+
+struct CudaDeleter
+{
+    void operator()(void* x) const { free(x); }
+};
 
 template <typename IT, typename VT>
 struct GpuCoo
@@ -8,9 +14,9 @@ struct GpuCoo
     IT NON_ZERO;
     IT ROWS;
     IT COLS;
-    IT* xs;
-    IT* ys;
-    VT* vals;
+    std::unique_ptr<IT, CudaDeleter> xs;
+    std::unique_ptr<IT, CudaDeleter> ys;
+    std::unique_ptr<VT, CudaDeleter> vals;
 };
 
 
