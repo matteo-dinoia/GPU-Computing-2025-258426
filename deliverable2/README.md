@@ -1,4 +1,22 @@
 # Deliverable 2
+## Description
+The full details can be found in the [paper pdf](report/deliverable2.pdf).
+
+As in the previous deliverable we had to use the COO format.
+<img width="895" height="481" alt="image" src="https://github.com/user-attachments/assets/b751dc84-33d7-4ab7-ab7d-d020d5c492bb" />
+
+Various optimization such as cache optimization, prefix sum, optimized prefix sum, 
+and optimization of parameter, unrolling and some other were tested.
+
+## Results
+<img width="718" height="478" alt="image" src="https://github.com/user-attachments/assets/4389e426-3bbf-478e-8fd7-8c0a2102de44" />
+
+The final result was that we could improve the final performance of over 8x the baseline implementation.
+
+The final result on the test machine ().
+<img width="723" height="312" alt="image" src="https://github.com/user-attachments/assets/f939c5af-b3d9-45bf-9b7c-ad4230d0becd" />
+
+
 ## Local compilation & execution
 It can be manually run using the executable but it is easier to just use the helper script, as such:
 ```bash
