@@ -1,10 +1,13 @@
 # Assignment 1
+The full details can be found in the [paper pdf](report/main.pdf).
+
+## Compilation
 
 To compile and test the code use the manual method (as the automated method is experimental).
 
 Firstly clone this repository over the cluster.
 
-## Cpu
+### Cpu
 
 Compile using
 
@@ -18,7 +21,7 @@ And then run using
 sbatch cpu.sbatch <input-dataset>
 ```
 
-## Gpu
+### Gpu
 
 Compile using
 
