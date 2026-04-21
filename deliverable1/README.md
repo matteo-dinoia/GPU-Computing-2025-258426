@@ -1,4 +1,4 @@
-# Assignment 1
+# Assignment 1 (CPU vs GPU)
 The full details can be found in the [paper pdf](report/main.pdf).
 
 ## Compilation
